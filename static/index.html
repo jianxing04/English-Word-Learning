@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="浏览本地单词本，阅读词典释义，练习英文拼写。">
+  <title>Wordroom · 单词自习室</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Wordroom 首页"><span class="brand-mark">w.</span><span>wordroom<span class="brand-cn">单词自习室</span></span></a>
+    <span class="topbar-note">一点积累，每天发生。</span>
+    <span class="local-badge"><span></span>本地单词本</span>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="单词本浏览器">
+      <div class="sidebar-heading"><h2>我的单词本</h2><button id="refresh" class="icon-button" title="刷新文件夹" aria-label="刷新文件夹"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10m16 4-3 3A7 7 0 0 1 5 12"/></svg></button></div>
+      <nav id="folder-crumbs" class="folder-crumbs" aria-label="文件夹路径"></nav>
+      <div id="files" class="files" aria-live="polite"><p class="muted">正在读取单词本…</p></div>
+      <div class="sidebar-bottom"><span class="small-label">添加单词本</span><p>把词表放入 <code>words</code> 文件夹<br>再点击刷新，即可开始学习。</p><span class="file-types">TXT / CSV / TSV / JSON</span></div>
+    </aside>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">YOUR DAILY WORD PRACTICE</div><h1>把单词，慢慢变熟。</h1></div><span class="chapter-decoration" aria-hidden="true">Aa</span></div>
+      <div id="app-error" class="app-error" role="alert" hidden></div>
+      <section class="study-panel" aria-label="单词学习区">
+        <div class="study-toolbar"><div class="book-heading"><span class="book-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5a2 2 0 0 1 0-4h14M5 4v12M9 8h6"/></svg></span><div><h2 id="book-name">选择一本单词本</h2><span id="book-path" class="muted">从左侧打开文件夹和词表</span></div></div><div class="mode-switch" aria-label="学习模式"><button id="read-mode" aria-pressed="true">阅读模式</button><button id="learn-mode" aria-pressed="false">拼写学习</button></div></div>
+        <div id="collection-toolbar" class="collection-toolbar" hidden><div class="collection-switch" aria-label="词本分类"><button id="main-collection" aria-pressed="true">原词本</button><button id="easy-collection" aria-pressed="false">简单词本</button></div><label id="reading-options" class="reading-options" hidden>阅读显示<select id="reading-display"><option value="all">全部显示</option><option value="hide-meaning">隐藏释义</option><option value="hide-word">隐藏单词</option></select></label><label id="batch-options" class="reading-options" hidden>每次背诵<select id="batch-size"><option value="1">单个单词</option><option value="5">5 个单词</option><option value="10">10 个单词</option></select></label><span id="collection-notice" role="status"></span></div>
+        <div class="progress-row"><span id="position-label">准备开始</span><div class="progress-track" role="progressbar" aria-label="单词本进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div><span id="progress-percent">0%</span></div>
+        <div id="empty-state" class="empty-state"><span class="empty-symbol">Aa</span><h3>打开单词本，开始今天的积累</h3><p>像浏览文件夹一样，从左侧选择你的词表。</p></div>
+        <div id="word-content" hidden>
+          <div class="word-columns">
+          <div class="word-primary">
+          <div class="word-stage"><div class="word-kicker"><span id="mode-label">READ & REMEMBER</span><span id="word-stars" class="word-stars" aria-label="柯林斯词频星级"></span></div><div id="word-display"><div class="word-line"><h2 id="word-title"></h2><button id="speak" class="icon-button sound-button" title="朗读单词" aria-label="朗读单词"><svg viewBox="0 0 24 24"><path d="m11 5-6 4H2v6h3l6 4zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button></div><div id="phonetic" class="phonetic"></div></div><div id="recall-title" hidden><h2>这个词，你还记得吗？</h2><p>根据下面的释义，写出英文单词。</p></div><div id="reading-prompt" class="reading-prompt" hidden aria-live="polite"></div><div id="translations" class="translations"></div><span id="word-tags" class="word-tags"></span></div>
+          <div id="learn-area" class="learn-area" hidden><label for="answer">你的答案</label><div class="answer-wrap"><input id="answer" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="输入英文单词…" aria-describedby="feedback"><button id="check-answer">检查 <kbd>Enter</kbd></button></div><div id="feedback" class="feedback" aria-live="polite">← / → 切换单词；按住 Tab 提示；回车检查；空格继续。</div><button id="continue-answer" class="continue-answer" disabled>检查后按空格继续 <kbd>Space</kbd></button></div>
+          <div id="word-actions" class="word-actions" hidden><button id="move-word" type="button">移入简单词</button></div>
+          </div>
+          <section id="reading-details" class="reading-details" aria-label="英文释义与词形"><h3>英文释义</h3><div id="definitions" class="definitions"></div><div id="word-forms-section" class="word-forms-section"><h3>词形变化</h3><div id="forms" class="forms"></div></div></section>
+          </div>
+        </div>
+        <section id="batch-content" class="batch-content" aria-label="批量背诵" hidden><p id="batch-summary" class="batch-summary" role="status"></p><div id="batch-scroll" class="batch-scroll" tabindex="0" role="region" aria-label="单词组，可上下滚动"><div id="batch-list" class="batch-list"></div></div></section>
+        <div id="complete-state" class="complete-state" hidden><span class="complete-mark">✓</span><div class="eyebrow">ONE MORE STEP FORWARD</div><h2>这一本，学完了。</h2><p id="complete-message"></p><button id="restart" class="primary-button">再学一遍</button></div>
+        <footer class="study-footer"><button id="previous" class="text-button" disabled>上一个</button><div class="keyboard-guide" id="keyboard-guide"><kbd>Space</kbd><span>下一个单词</span></div><button id="next" class="primary-button" disabled>下一个 <kbd>Space</kbd></button></footer>
+      </section>
+      <div class="below-panel"><span><span class="mini-mark">✦</span>不赶进度，记住一个也是收获。</span><span id="session-stats">阅读释义 · 练习拼写</span></div>
+      <footer class="page-footer"><span>释义来源：<a href="https://github.com/skywind3000/ECDICT" target="_blank" rel="noreferrer">ECDICT 英汉词典</a></span><button id="save-status" class="save-status" type="button" disabled aria-live="polite">分类与进度保存在词本 JSON</button></footer>
+    </main>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
