@@ -21,9 +21,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
+import wordnet_dictionary
+
 BASE = Path(__file__).resolve().parent
 BOOK_ROOT = BASE / "words"
 DICT_PATH = Path(os.environ.get("WORDROOM_DICT", r"D:\My_Codes\MyEnglishApp\data\dict.db"))
+WORDNET_PATH = Path(os.environ.get("WORDROOM_WORDNET", str(wordnet_dictionary.DEFAULT_PATH)))
 STATIC = BASE / "static"
 SUPPORTED = {".txt", ".csv", ".tsv", ".json"}
 BOOK_LOCK = threading.RLock()
@@ -133,6 +136,8 @@ def read_document(path):
         raise UserError("单词本 JSON 格式有误，请检查文件。") from exc
     if not isinstance(document, dict) or "easy_words" not in document:
         raise UserError("请先将旧词表转换为包含 words 和 easy_words 的 JSON。")
+    if "word_details" in document:
+        validate_word_details(document["word_details"])
     easy = word_list(document.get("easy_words"))
     easy_keys = {word_key(word) for word in easy}
     main_words = [word for word in word_list(document.get("words")) if word_key(word) not in easy_keys]
@@ -140,6 +145,19 @@ def read_document(path):
             "progress": document.get("progress") if isinstance(document.get("progress"), dict) else {},
             "settings": document.get("settings") if isinstance(document.get("settings"), dict) else {},
             "revision": document.get("revision", 0)}
+
+
+def validate_word_details(details):
+    if not isinstance(details, dict):
+        raise UserError("word_details 必须按单词保存语境记忆内容。")
+    for word, detail in details.items():
+        if not isinstance(detail, dict) or not isinstance(detail.get("contexts", []), list):
+            raise UserError(f"{word} 的 contexts 必须是短语数组。")
+        if any(not isinstance(detail.get(field, ""), str) for field in ("note", "display_word")):
+            raise UserError(f"{word} 的搭配说明和显示词形必须是文字。")
+        for context in detail.get("contexts", []):
+            if not isinstance(context, dict) or any(not isinstance(context.get(field), str) or not context[field].strip() for field in ("pos", "meaning", "english", "chinese")):
+                raise UserError(f"{word} 的每个搭配须包含 pos、meaning、english、chinese 四项文字。")
 
 
 def ensure_json_book(relative):
@@ -334,6 +352,63 @@ def browse(relative):
     return {"path": "" if directory == BOOK_ROOT else directory.relative_to(BOOK_ROOT).as_posix(), "entries": entries}
 
 
+@lru_cache(maxsize=1)
+def search_index(root, signature):
+    """Build a read-only, deduplicated view; the WL files retain their own state."""
+    entries, errors, occurrences, book_count = {}, [], 0, 0
+    for relative, _modified, _size in signature:
+        path = root / relative
+        try:
+            if path.suffix.lower() == ".json":
+                parsed = json.loads(read_text(path))
+                document = read_document(path) if isinstance(parsed, dict) and "easy_words" in parsed else None
+            else:
+                document = None
+            collections = {"main": document["words"], "easy": document["easy_words"]} if document else {"main": read_words(path)}
+            book_count += 1
+            for collection, words in collections.items():
+                for word in words:
+                    key = word_key(word)
+                    entry = entries.setdefault(key, {"word": word, "key": key, "sources": []})
+                    source = {"path": relative, "name": path.stem, "collection": collection}
+                    if source not in entry["sources"]:
+                        entry["sources"].append(source)
+                        occurrences += 1
+        except (UserError, OSError, ValueError, TypeError) as exc:
+            errors.append({"path": relative, "error": getattr(exc, "message", "词本无法读取。")})
+    return {"entries": tuple(entries.values()), "books": book_count, "occurrences": occurrences, "errors": errors}
+
+
+def search_wordbooks(query="", offset=0, limit=30):
+    if len(query) > 200:
+        raise UserError("搜索内容不能超过 200 个字符。")
+    if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
+        raise UserError("搜索分页参数无效。")
+    needle = word_key(query)
+    with BOOK_LOCK:
+        paths = [path for path in BOOK_ROOT.rglob("*")
+                 if path.is_file() and path.suffix.lower() in SUPPORTED
+                 and not any(part.startswith(".") for part in path.relative_to(BOOK_ROOT).parts)
+                 and path.resolve().is_relative_to(BOOK_ROOT.resolve())]
+        paths.sort(key=lambda path: tuple(natural_key(Path(part)) for part in path.relative_to(BOOK_ROOT).parts))
+        signature = tuple((path.relative_to(BOOK_ROOT).as_posix(), path.stat().st_mtime_ns, path.stat().st_size) for path in paths)
+        index = search_index(BOOK_ROOT, signature)
+    matches = [entry for entry in index["entries"] if needle in entry["key"]]
+    def rank(entry):
+        key = entry["key"]
+        return (0 if key == needle else 1 if key.startswith(needle) else 2, key)
+    matches.sort(key=rank)
+    results = []
+    for entry in matches[offset:offset + limit]:
+        dictionary = lookup(entry["word"]) if DICT_PATH.is_file() else {}
+        results.append({"word": entry["word"], "sources": entry["sources"],
+                        "match": "all" if not needle else "exact" if entry["key"] == needle else "prefix" if entry["key"].startswith(needle) else "contains",
+                        "translation": dictionary.get("translation", ""), "phonetic": dictionary.get("phonetic", ""),
+                        "found": dictionary.get("found", False)})
+    return {"query": needle, "results": results, "total": len(matches), "offset": offset, "limit": limit,
+            "unique_words": len(index["entries"]), "occurrences": index["occurrences"], "books": index["books"], "errors": index["errors"]}
+
+
 @lru_cache(maxsize=8192)
 def lookup(word):
     if not DICT_PATH.is_file():
@@ -355,9 +430,16 @@ def load_book(relative):
         document = read_document(path)
         token = file_token(path)
     words = document["words"] + document["easy_words"]
+    details = {word_key(word): detail for word, detail in document.get("word_details", {}).items()}
+    entries = []
+    for word in words:
+        detail = details.get(word_key(word), {})
+        entries.append(lookup(word) | {"word": word, "wordnet": wordnet_dictionary.lookup(word, WORDNET_PATH),
+                                      "contexts": detail.get("contexts", []), "context_note": detail.get("note", ""),
+                                      "context_headword": detail.get("display_word") or word})
     fingerprint = hashlib.sha256("\n".join(sorted(words, key=word_key)).encode()).hexdigest()[:16]
     return {"path": path.relative_to(BOOK_ROOT).as_posix(), "name": path.stem, "fingerprint": fingerprint,
-            "words": [lookup(word) | {"word": word} for word in words], "easy_words": document["easy_words"],
+            "words": entries, "easy_words": document["easy_words"],
             "progress": document["progress"], "settings": document["settings"], "revision": document["revision"], "etag": token}
 
 
@@ -408,8 +490,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(browse(query.get("path", [""])[0]))
             if parsed.path == "/api/book":
                 return self.send_json(load_book(query.get("path", [""])[0]))
+            if parsed.path == "/api/search":
+                try:
+                    offset, limit = int(query.get("offset", ["0"])[0]), int(query.get("limit", ["30"])[0])
+                except ValueError as exc:
+                    raise UserError("搜索分页参数无效。") from exc
+                return self.send_json(search_wordbooks(query.get("q", [""])[0], offset, limit))
             if parsed.path == "/api/status":
-                return self.send_json({"dictionary": DICT_PATH.is_file(), "book_root": str(BOOK_ROOT), "dictionary_name": "ECDICT 英汉词典"})
+                return self.send_json({"dictionary": DICT_PATH.is_file(), "book_root": str(BOOK_ROOT), "dictionary_name": "ECDICT 英汉词典", "wordnet": WORDNET_PATH.is_file()})
             if parsed.path.startswith("/api/"):
                 raise UserError("接口不存在。", 404)
             resource = "index.html" if parsed.path == "/" else unquote(parsed.path).lstrip("/")
@@ -435,14 +523,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global DICT_PATH, BOOK_ROOT
+    global DICT_PATH, BOOK_ROOT, WORDNET_PATH
     parser = argparse.ArgumentParser(description="Wordroom local English learning website")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--dict", type=Path, default=DICT_PATH)
+    parser.add_argument("--wordnet", type=Path, default=WORDNET_PATH)
     parser.add_argument("--words", type=Path, default=BOOK_ROOT)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
     DICT_PATH, BOOK_ROOT = args.dict.resolve(), args.words.resolve()
+    WORDNET_PATH = args.wordnet.resolve()
     if not BOOK_ROOT.is_dir():
         parser.error(f"Word-book folder does not exist: {BOOK_ROOT}")
     try:

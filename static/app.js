@@ -1,6 +1,7 @@
 import { checkAnswer, spaceAction, normalizeAnswer } from './study-state.mjs';
 import { splitWordbook, alignProgress, shuffleUnread } from './wordbook-state.mjs';
 import { buildBatch, batchDraft, nextBatchOffset, batchCanAdvance, resetBatchRound, clearBatchInputs, shuffleBatchRows } from './batch-state.mjs';
+import { setupGlobalSearch } from './global-search.mjs';
 
 const $ = id => document.getElementById(id);
 const state = { folder: '', book: null, sourceBook: null, collection: 'main', mode: 'read', readingDisplay: 'all', readingRevealed: false, batchSize: 1, batch: null, index: 0, result: null, progress: {}, sequence: 0, folderSequence: 0, loading: false, showingHint: false };
@@ -186,8 +187,8 @@ function highlightBook() {
   });
 }
 
-async function openBook(path, collection = 'main') {
-  if (state.loading) return;
+async function openBook(path, collection = 'main', targetWord = '') {
+  if (state.loading) return false;
   save();
   const sequence = ++state.sequence;
   state.loading = true;
@@ -199,25 +200,93 @@ async function openBook(path, collection = 'main') {
   $('next').disabled = true;
   $('previous').disabled = true;
   try {
-    if (!await flushSaves()) { state.loading = false; render(); return; }
+    if (!await flushSaves()) { state.loading = false; render(); return false; }
     const book = await api('/api/book?path=' + encodeURIComponent(path));
-    if (sequence !== state.sequence) return;
-    state.collection = collection;
+    if (sequence !== state.sequence) return false;
+    if (targetWord && !book.words.some(entry => normalizeAnswer(entry.word) === normalizeAnswer(targetWord))) throw new Error('这个词已从词本移除，请重新搜索。');
+    if (targetWord) state.mode = 'read';
+    state.collection = targetWord ? (book.easy_words.some(word => normalizeAnswer(word) === normalizeAnswer(targetWord)) ? 'easy' : 'main') : collection;
     acceptBook(book, state.mode === 'read');
+    if (targetWord) state.index = state.book.words.findIndex(entry => normalizeAnswer(entry.word) === normalizeAnswer(targetWord));
     state.result = null;
     state.loading = false;
     save(); highlightBook(); render();
+    return true;
   } catch (error) {
     if (sequence !== state.sequence) return;
     state.loading = false;
     showError(error.message);
     render();
+    return false;
   }
 }
 
 function putLines(target, value) {
   target.replaceChildren();
   for (const line of value.split(/\n|\\n/).filter(Boolean)) { const text = document.createElement('p'); text.textContent = line; target.append(text); }
+}
+
+function highlightContext(text, word) {
+  const forms = word.exchange.split('/').map(part => part.slice(part.indexOf(':') + 1)).flatMap(value => value.split(','));
+  const candidates = [...new Set([word.word, word.context_headword, ...forms].filter(Boolean))].sort((a, b) => b.length - a.length);
+  const escaped = candidates.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
+  const fragment = document.createDocumentFragment();
+  let start = 0;
+  for (const match of text.matchAll(pattern)) {
+    fragment.append(document.createTextNode(text.slice(start, match.index)));
+    const mark = document.createElement('mark'); mark.textContent = match[0]; fragment.append(mark);
+    start = match.index + match[0].length;
+  }
+  fragment.append(document.createTextNode(text.slice(start)));
+  return fragment;
+}
+
+function renderContexts(word) {
+  const contexts = word.contexts || [];
+  $('memory-contexts').hidden = state.mode !== 'read' || !contexts.length;
+  $('context-list').replaceChildren();
+  $('context-note').textContent = word.context_note || '';
+  $('context-note').hidden = !word.context_note;
+  if (state.mode !== 'read') return;
+  for (const context of contexts) {
+    const item = document.createElement('li');
+    const meta = document.createElement('div'); meta.className = 'context-meta';
+    const pos = document.createElement('span'); pos.className = 'context-pos'; pos.textContent = context.pos;
+    const meaning = document.createElement('span'); meaning.textContent = context.meaning; meta.append(pos, meaning);
+    const english = document.createElement('p'); english.className = 'context-english'; english.append(highlightContext(context.english, word));
+    const chinese = document.createElement('p'); chinese.className = 'context-chinese'; chinese.textContent = context.chinese;
+    item.append(meta, english, chinese); $('context-list').append(item);
+  }
+}
+
+function wordnetPanel(entry) {
+  const data = entry.wordnet;
+  const panel = document.createElement('section'); panel.className = 'wordnet-panel';
+  const heading = document.createElement('h3');
+  const link = document.createElement('a'); link.textContent = 'Open English WordNet'; link.href = 'https://en-word.net/'; link.target = '_blank'; link.rel = 'noreferrer';
+  heading.append(link); panel.append(heading);
+  const note = document.createElement('p'); note.className = 'wordnet-note';
+  note.textContent = data?.available ? `${data.version || ''} · 英文义项与同义词` : data?.message || '未安装补充词库，当前仅显示 ECDICT。';
+  panel.append(note);
+  if (!data?.found) {
+    if (data?.available) note.textContent = '该词暂无 WordNet 释义，可参考 ECDICT。';
+    return panel;
+  }
+  const parts = { n: 'n. 名词', v: 'v. 动词', a: 'adj. 形容词', s: 'adj. 形容词', r: 'adv. 副词' };
+  const list = document.createElement('ol'); list.className = 'wordnet-list';
+  for (const sense of data.senses) {
+    const row = document.createElement('li');
+    const pos = document.createElement('span'); pos.className = 'wordnet-pos'; pos.textContent = parts[sense.pos] || sense.pos;
+    const definition = document.createElement('p'); definition.className = 'wordnet-definition'; definition.textContent = sense.definition;
+    row.append(pos, definition);
+    if (sense.synonyms?.length) {
+      const synonyms = document.createElement('p'); synonyms.className = 'wordnet-synonyms'; synonyms.textContent = '同义词：' + sense.synonyms.join(' · '); row.append(synonyms);
+    }
+    list.append(row);
+  }
+  panel.append(list);
+  return panel;
 }
 
 function fitWordTitle() {
@@ -256,6 +325,7 @@ function updateReadingView() {
   $('word-display').hidden = hideWord;
   $('translations').hidden = hideMeaning;
   $('reading-details').hidden = hideMeaning;
+  $('memory-contexts').hidden = !state.book.words[state.index].contexts?.length || hideWord || hideMeaning;
   $('word-forms-section').hidden = hideWord;
   $('reading-prompt').hidden = !hideWord && !hideMeaning;
   $('reading-prompt').textContent = hideWord ? '先回想单词，按空格揭示。' : '先回想释义，按空格揭示。';
@@ -339,6 +409,7 @@ function paintBatchRow(offset) {
   $('batch-row-' + offset).classList.toggle('correct', row.status === 'correct');
   $('batch-row-' + offset).classList.toggle('incorrect', row.status === 'incorrect');
   $('batch-answer-' + offset).setAttribute('aria-invalid', String(row.status === 'incorrect'));
+  $('batch-wordnet-' + offset).hidden = !['correct', 'incorrect'].includes(row.status);
   $('batch-feedback-' + offset).textContent = row.status === 'correct' ? row.clearedAfterCorrect ? '✓ 全组通过，输入已清空。' : '✓ 拼写正确' : row.status === 'incorrect' ? '拼写不正确，按住 Tab 查看提示后再试一次。' : row.status === 'empty' ? '先输入单词，再按回车检查。' : '输入英文单词，按回车检查。';
 }
 
@@ -362,6 +433,7 @@ function paintBatch() {
     const label = document.createElement('label'); label.htmlFor = 'batch-answer-' + offset; label.textContent = '根据释义填写英文单词';
     heading.append(number, label);
     const meaning = document.createElement('div'); meaning.className = 'batch-meaning'; meaning.textContent = row.entry.translation || '暂无中文释义，可按住 Tab 查看单词。';
+    const supplement = document.createElement('div'); supplement.id = 'batch-wordnet-' + offset; supplement.append(wordnetPanel(row.entry));
     const hint = document.createElement('div'); hint.id = 'batch-hint-' + offset; hint.className = 'batch-hint'; hint.hidden = true; hint.setAttribute('aria-live', 'polite');
     const wrap = document.createElement('div'); wrap.className = 'batch-answer-wrap';
     const input = document.createElement('input'); input.id = 'batch-answer-' + offset; input.className = 'batch-answer'; input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false; input.setAttribute('autocapitalize', 'off'); input.placeholder = '输入英文单词…'; input.value = row.answer; input.setAttribute('aria-describedby', 'batch-feedback-' + offset); input.setAttribute('aria-label', `本组第 ${offset + 1} 个答案`);
@@ -387,7 +459,7 @@ function paintBatch() {
     wrap.append(input, checkButton);
     const feedback = document.createElement('div'); feedback.id = 'batch-feedback-' + offset; feedback.className = 'batch-feedback'; feedback.setAttribute('aria-live', 'polite');
     const move = document.createElement('button'); move.type = 'button'; move.className = 'batch-move'; move.textContent = state.collection === 'main' ? '移入简单词' : '放回原词本'; move.onclick = () => moveWord(row.index);
-    card.append(heading, meaning, hint, wrap, feedback, move);
+    card.append(heading, meaning, hint, wrap, feedback, supplement, move);
     $('batch-list').append(card);
     paintBatchRow(offset);
   }
@@ -437,6 +509,7 @@ function render() {
   state.showingHint = false;
   state.batch = null;
   $('batch-content').hidden = true;
+  $('memory-contexts').hidden = true;
   state.readingRevealed = false;
   state.result = null;
   $('translations').hidden = false;
@@ -512,6 +585,9 @@ function render() {
   $('word-title').textContent = word.word;
   $('phonetic').textContent = word.phonetic ? `/ ${word.phonetic} /` : '暂无音标';
   putLines($('translations'), word.translation || '暂无中文释义；可在阅读模式查看英文解释。');
+  const sourceLabel = document.createElement('div'); sourceLabel.className = 'dictionary-label'; sourceLabel.textContent = 'ECDICT · 中文释义'; $('translations').prepend(sourceLabel);
+  $('wordnet-reading').replaceChildren(wordnetPanel(word));
+  renderContexts(word);
   $('word-tags').replaceChildren();
   for (const tag of word.tag.split(' ').filter(Boolean).slice(0, 6)) { const label = document.createElement('span'); label.textContent = tagNames[tag] || tag.toUpperCase(); $('word-tags').append(label); }
   $('word-stars').textContent = word.collins ? '★'.repeat(Math.min(5, Math.max(0, Number(word.collins)))) : '';
@@ -645,6 +721,7 @@ async function moveWord(index) {
     save(); render();
     $('collection-notice').textContent = state.collection === 'main' ? '已移入简单词本并保存' : '已放回原词本并保存';
     browse(state.folder);
+    globalSearch.refresh();
   } catch (error) { showError('未移动单词：' + error.message); }
   finally { state.loading = false; }
 }
@@ -711,6 +788,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) hideW
 
 document.addEventListener('keydown', event => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  if (event.target.closest('.global-search')) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing || event.keyCode === 229) return;
   if (state.loading || !state.book || !state.book.words.length) return;
   if (event.target.closest('.sidebar, .mode-switch, .collection-switch') || event.target.isContentEditable) return;
@@ -749,7 +827,7 @@ $('restart').onclick = restartStudy;
 $('save-status').onclick = () => saveConflict ? location.reload() : flushSaves();
 window.addEventListener('pagehide', () => { flushSaves(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushSaves(); });
-$('refresh').onclick = () => { showError(''); browse(state.folder); };
+$('refresh').onclick = () => { showError(''); browse(state.folder); globalSearch.refresh(); };
 $('answer').addEventListener('input', () => {
   if (!state.result) return;
   state.result = null;
@@ -764,6 +842,7 @@ $('answer').addEventListener('keydown', event => {
 });
 document.addEventListener('keydown', event => {
   if (event.isComposing || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+  if (event.target.closest('.global-search')) return;
   if (isBatchMode()) {
     if (event.key === 'Enter' && event.target.closest('.study-panel') && !event.target.matches('input, textarea, select') && !event.target.closest('.mode-switch, .collection-switch') && event.target.id !== 'restart') {
       event.preventDefault(); checkBatch(state.batch?.active);
@@ -790,6 +869,16 @@ $('speak').onclick = () => {
   const voice = new SpeechSynthesisUtterance(word.word); voice.lang = 'en-US'; voice.rate = 0.85; speechSynthesis.speak(voice);
 };
 if (!('speechSynthesis' in window)) $('speak').hidden = true;
+
+const globalSearch = setupGlobalSearch({
+  api,
+  async openWord(path, collection, word) {
+    if (await openBook(path, collection, word)) {
+      await browse(path.split('/').slice(0, -1).join('/'));
+      document.querySelector('.study-panel').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    }
+  },
+});
 
 async function initialize() {
   let lastBook = ''; let collection = 'main'; try { lastBook = localStorage.getItem('wordroom.lastBook') || ''; state.mode = localStorage.getItem('wordroom.mode') === 'learn' ? 'learn' : 'read'; collection = localStorage.getItem('wordroom.collection') === 'easy' ? 'easy' : 'main'; } catch { /* Defaults are sufficient. */ }

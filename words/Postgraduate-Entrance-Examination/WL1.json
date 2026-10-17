@@ -38,7 +38,7 @@
     "descent",
     "appropriate",
     "nuclear",
-    "trolly",
+    "trolley",
     "mercy",
     "monotonous",
     "electron",
@@ -109,7 +109,7 @@
         "descent",
         "appropriate",
         "nuclear",
-        "trolly",
+        "trolley",
         "mercy",
         "monotonous",
         "electron",
@@ -133,67 +133,67 @@
         "consist"
       ],
       "read_order": [
-        "ridiculous",
-        "specialty",
-        "acquisition",
-        "manuscript",
-        "disposition",
-        "salute",
-        "distort",
-        "toil",
-        "principal",
-        "convention",
-        "graphic",
-        "indignation",
-        "settlement",
-        "alternate",
-        "exploit",
-        "dispute",
-        "poll",
-        "tropic",
-        "turbulent",
-        "implication",
-        "jaw",
-        "publicity",
-        "approach",
-        "declare",
-        "respond",
-        "optimistic",
-        "hostile",
-        "mount",
-        "navigation",
-        "aspire",
         "decade",
-        "polish",
-        "abundant",
-        "tradition",
         "descent",
-        "appropriate",
-        "nuclear",
-        "trolly",
-        "mercy",
-        "monotonous",
-        "electron",
-        "acceptance",
-        "virus",
-        "despair",
-        "intrude",
-        "facility",
+        "tradition",
         "explicit",
+        "virus",
         "mercury",
-        "magnificent",
-        "encyclopedia",
+        "turbulent",
+        "trolley",
+        "monotonous",
+        "hostile",
+        "alternate",
         "superfluous",
-        "variation",
-        "anchor",
+        "toil",
+        "graphic",
+        "exploit",
+        "manuscript",
+        "implication",
+        "dispute",
         "quit",
+        "optimistic",
+        "abundant",
+        "distort",
         "glory",
-        "spicy",
         "geology",
+        "tropic",
+        "indignation",
+        "publicity",
+        "encyclopedia",
+        "approach",
+        "polish",
+        "specialty",
+        "magnificent",
+        "respond",
+        "despair",
+        "ridiculous",
+        "mercy",
+        "electron",
+        "convention",
+        "intrude",
+        "poll",
+        "principal",
+        "nuclear",
+        "settlement",
+        "navigation",
+        "mount",
+        "declare",
+        "appropriate",
+        "disposition",
+        "consist",
+        "variation",
+        "salute",
+        "acceptance",
+        "acquisition",
         "multiply",
-        "consist"
+        "jaw",
+        "aspire",
+        "facility",
+        "spicy",
+        "anchor"
       ],
-      "read": 0,
+      "read": 10,
       "learn": 10,
       "correct": [
         0,
@@ -371,6 +371,1310 @@
   "settings": {
     "batch_size": 5
   },
-  "revision": 1,
-  "legacy_imported": true
+  "revision": 18,
+  "legacy_imported": true,
+  "word_details": {
+    "ridiculous": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "荒唐的；可笑的",
+          "english": "a ridiculous excuse for being late",
+          "chinese": "一个荒唐的迟到借口"
+        }
+      ]
+    },
+    "specialty": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "专长；专业领域",
+          "english": "heart surgery is her specialty",
+          "chinese": "心脏外科手术是她的专长"
+        },
+        {
+          "pos": "n.",
+          "meaning": "特色食品；招牌菜",
+          "english": "try the restaurant's seafood specialty",
+          "chinese": "尝尝这家餐馆的海鲜招牌菜"
+        }
+      ],
+      "note": "specialty 常用于美式英语；英式英语也常用 speciality。"
+    },
+    "acquisition": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "习得；获得",
+          "english": "the acquisition of a second language",
+          "chinese": "第二语言的习得"
+        },
+        {
+          "pos": "n.",
+          "meaning": "收购",
+          "english": "the acquisition of a smaller company",
+          "chinese": "对一家较小公司的收购"
+        },
+        {
+          "pos": "n.",
+          "meaning": "新购入的东西",
+          "english": "a rare map, the museum's latest acquisition",
+          "chinese": "一张珍稀地图，博物馆最新购入的藏品"
+        }
+      ]
+    },
+    "manuscript": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "手稿；原稿",
+          "english": "send the finished manuscript to a publisher",
+          "chinese": "把完成的原稿寄给出版商"
+        }
+      ],
+      "note": "现代语境中的 manuscript 也可以是电脑打出的待出版原稿，不一定是手写稿。"
+    },
+    "disposition": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "性情；性格",
+          "english": "a child with a gentle disposition",
+          "chinese": "一个性情温和的孩子"
+        },
+        {
+          "pos": "n.",
+          "meaning": "倾向；意愿",
+          "english": "a disposition to trust strangers",
+          "chinese": "容易信任陌生人的倾向"
+        },
+        {
+          "pos": "n.",
+          "meaning": "部署；排列（正式用语）",
+          "english": "the disposition of troops along the border",
+          "chinese": "部队沿边境的部署"
+        }
+      ]
+    },
+    "salute": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "向……敬礼",
+          "english": "salute the officer at the gate",
+          "chinese": "向门口的军官敬礼"
+        },
+        {
+          "pos": "v.",
+          "meaning": "赞扬；向……致敬",
+          "english": "salute the volunteers' dedication",
+          "chinese": "向志愿者们的奉献精神致敬"
+        },
+        {
+          "pos": "n.",
+          "meaning": "敬礼；致敬仪式",
+          "english": "a twenty-one-gun salute for the visitor",
+          "chinese": "向来宾鸣放二十一响礼炮"
+        }
+      ]
+    },
+    "distort": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "使变形；使扭曲",
+          "english": "a curved mirror distorts your reflection",
+          "chinese": "曲面镜使你的映像变形"
+        },
+        {
+          "pos": "v.",
+          "meaning": "歪曲；曲解",
+          "english": "distort the facts to win an argument",
+          "chinese": "为了赢得争论而歪曲事实"
+        },
+        {
+          "pos": "v.",
+          "meaning": "使声音失真",
+          "english": "a faulty speaker distorts the sound",
+          "chinese": "出故障的扬声器使声音失真"
+        }
+      ]
+    },
+    "toil": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "辛苦劳作",
+          "english": "toil in the fields until sunset",
+          "chinese": "在田里辛苦劳作到日落"
+        },
+        {
+          "pos": "n.",
+          "meaning": "辛劳；苦工",
+          "english": "years of toil with little reward",
+          "chinese": "多年辛劳却回报甚少"
+        }
+      ]
+    },
+    "principal": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "主要的；最重要的",
+          "english": "the principal reason for the delay",
+          "chinese": "延误的主要原因"
+        },
+        {
+          "pos": "n.",
+          "meaning": "校长",
+          "english": "meet the new school principal",
+          "chinese": "与学校的新校长见面"
+        },
+        {
+          "pos": "n.",
+          "meaning": "本金",
+          "english": "repay the principal plus interest",
+          "chinese": "偿还本金和利息"
+        }
+      ],
+      "note": "principal 表示“主要的、校长、本金”；principle 表示“原则、原理”，两词通常同音。"
+    },
+    "convention": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "惯例；约定俗成的做法",
+          "english": "follow the conventions of formal writing",
+          "chinese": "遵循正式写作的惯例"
+        },
+        {
+          "pos": "n.",
+          "meaning": "大会；代表会议",
+          "english": "attend an annual teachers' convention",
+          "chinese": "参加一年一度的教师大会"
+        },
+        {
+          "pos": "n.",
+          "meaning": "公约；国际协定",
+          "english": "a convention against marine pollution",
+          "chinese": "一项防治海洋污染的公约"
+        }
+      ]
+    },
+    "graphic": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "图形的；图示的",
+          "english": "a graphic display of population changes",
+          "chinese": "人口变化的图形展示"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "生动详尽的",
+          "english": "a graphic account of life at sea",
+          "chinese": "对海上生活的生动详述"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "露骨的；令人不适地详细的",
+          "english": "a warning about graphic violence",
+          "chinese": "关于露骨暴力画面的警告"
+        },
+        {
+          "pos": "n.",
+          "meaning": "图形；图表",
+          "english": "add a graphic showing monthly sales",
+          "chinese": "添加一张展示月销售额的图表"
+        }
+      ],
+      "note": "graphics 常指计算机图形、画面效果；graphic 描写暴力或性内容时，通常含“露骨、可能令人不适”的意思。"
+    },
+    "indignation": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "义愤；愤慨",
+          "english": "express indignation at the unfair decision",
+          "chinese": "对这一不公的决定表示愤慨"
+        }
+      ]
+    },
+    "settlement": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "和解；解决争端的协议",
+          "english": "reach a settlement with the workers",
+          "chinese": "与工人达成和解协议"
+        },
+        {
+          "pos": "n.",
+          "meaning": "结算；清偿",
+          "english": "full settlement of the outstanding bill",
+          "chinese": "全额结清未付账单"
+        },
+        {
+          "pos": "n.",
+          "meaning": "定居点；聚居地",
+          "english": "a small settlement beside the river",
+          "chinese": "河边的一个小聚居地"
+        },
+        {
+          "pos": "n.",
+          "meaning": "定居；移民开拓",
+          "english": "the early settlement of the island",
+          "chinese": "对这座岛屿的早期移民开拓"
+        }
+      ]
+    },
+    "alternate": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "使交替；轮流进行",
+          "english": "alternate focused study with short walks",
+          "chinese": "把专注学习和短暂散步交替安排"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "交替的；轮流的",
+          "english": "alternate bands of black and white",
+          "chinese": "黑白相间的条带"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "间隔的；每隔一个的",
+          "english": "water the plants on alternate days",
+          "chinese": "每隔一天给植物浇一次水"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "另一可选的；备用的（主要用于美式英语）",
+          "english": "take an alternate route around the town",
+          "chinese": "走另一条路线绕过小镇"
+        },
+        {
+          "pos": "n.",
+          "meaning": "替补；候补人员（美式英语）",
+          "english": "serve as an alternate on the team",
+          "chinese": "担任队里的替补"
+        }
+      ],
+      "note": "动词末尾通常读 /neɪt/，形容词和名词末尾通常读 /nət/。alternate days 是“隔一天”，不是“每天”。"
+    },
+    "exploit": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "开发；利用资源或机会",
+          "english": "exploit the region's wind resources",
+          "chinese": "开发这个地区的风能资源"
+        },
+        {
+          "pos": "v.",
+          "meaning": "剥削；不公正地利用",
+          "english": "exploit workers by paying unfair wages",
+          "chinese": "通过支付不合理的低工资剥削工人"
+        },
+        {
+          "pos": "v.",
+          "meaning": "利用弱点或漏洞",
+          "english": "exploit a loophole in the rules",
+          "chinese": "利用规则中的一个漏洞"
+        },
+        {
+          "pos": "n.",
+          "meaning": "英勇事迹；非凡经历（常用复数）",
+          "english": "tell stories of her daring exploits at sea",
+          "chinese": "讲述她在海上的英勇事迹"
+        }
+      ],
+      "note": "作动词时重音通常在后，作名词时重音通常在前。"
+    },
+    "dispute": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "争执；争端",
+          "english": "a dispute over unpaid wages",
+          "chinese": "一场关于拖欠工资的争端"
+        },
+        {
+          "pos": "v.",
+          "meaning": "质疑；对……提出异议",
+          "english": "dispute the accuracy of the report",
+          "chinese": "质疑报告的准确性"
+        },
+        {
+          "pos": "v.",
+          "meaning": "争夺；就……发生争执",
+          "english": "the two families dispute ownership of the land",
+          "chinese": "这两家人就这块土地的所有权发生争执"
+        }
+      ]
+    },
+    "poll": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "民意调查",
+          "english": "a poll on attitudes to remote work",
+          "chinese": "一项关于远程办公态度的民意调查"
+        },
+        {
+          "pos": "n.",
+          "meaning": "投票选举；投票地点（the polls）",
+          "english": "voters head to the polls on Sunday",
+          "chinese": "选民星期日前往投票"
+        },
+        {
+          "pos": "v.",
+          "meaning": "对……进行民意调查",
+          "english": "poll residents about the new bus route",
+          "chinese": "调查居民对新公交线路的意见"
+        },
+        {
+          "pos": "v.",
+          "meaning": "获得选票",
+          "english": "the candidate polled over half the votes",
+          "chinese": "这位候选人获得了超过一半的选票"
+        }
+      ]
+    },
+    "tropic": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "回归线",
+          "english": "cross the Tropic of Capricorn",
+          "chinese": "穿过南回归线"
+        },
+        {
+          "pos": "n.（复数）",
+          "meaning": "热带地区（the tropics）",
+          "english": "grow fruit in the tropics",
+          "chinese": "在热带地区种植水果"
+        }
+      ],
+      "note": "南北回归线分别是 the Tropic of Capricorn 和 the Tropic of Cancer；表达“热带的”通常用 tropical。"
+    },
+    "turbulent": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "动荡的；混乱的",
+          "english": "a turbulent period in the country's history",
+          "chinese": "这个国家历史上动荡的一段时期"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "湍急的；有湍流的",
+          "english": "a plane passing through turbulent air",
+          "chinese": "一架穿过湍流区的飞机"
+        }
+      ]
+    },
+    "implication": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "暗示；言外之意",
+          "english": "the implication that we had lied",
+          "chinese": "言外之意是我们说了谎"
+        },
+        {
+          "pos": "n.",
+          "meaning": "可能的影响；后果（常用复数）",
+          "english": "the long-term implications of the policy",
+          "chinese": "这项政策可能带来的长远影响"
+        },
+        {
+          "pos": "n.",
+          "meaning": "牵连；被卷入",
+          "english": "his implication in a corruption scandal",
+          "chinese": "他被卷入一起腐败丑闻"
+        }
+      ]
+    },
+    "jaw": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "颌；下巴",
+          "english": "break your jaw in a cycling accident",
+          "chinese": "在骑车事故中摔断颌骨"
+        },
+        {
+          "pos": "n.",
+          "meaning": "夹口；钳口（常用复数）",
+          "english": "tighten the jaws of the clamp",
+          "chinese": "收紧夹具的夹口"
+        }
+      ]
+    },
+    "publicity": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "宣传；推广",
+          "english": "a publicity campaign for the new film",
+          "chinese": "为新电影开展的宣传活动"
+        },
+        {
+          "pos": "n.",
+          "meaning": "公众关注；媒体报道",
+          "english": "avoid unwanted publicity after the incident",
+          "chinese": "事件发生后避开不想要的公众关注"
+        }
+      ]
+    },
+    "approach": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "接近；靠近",
+          "english": "slow down as you approach the crossing",
+          "chinese": "接近路口时减速"
+        },
+        {
+          "pos": "v.",
+          "meaning": "接洽；与……商量",
+          "english": "approach the manager about a pay rise",
+          "chinese": "找经理商量加薪的事"
+        },
+        {
+          "pos": "v.",
+          "meaning": "着手处理；对待",
+          "english": "approach the problem from a new angle",
+          "chinese": "从新的角度着手处理这个问题"
+        },
+        {
+          "pos": "n.",
+          "meaning": "方法；方式",
+          "english": "a practical approach to saving energy",
+          "chinese": "一种节约能源的实用方法"
+        },
+        {
+          "pos": "n.",
+          "meaning": "通路；接近某处的道路",
+          "english": "the northern approach to the bridge",
+          "chinese": "通往大桥的北侧道路"
+        },
+        {
+          "pos": "n.",
+          "meaning": "临近；来临",
+          "english": "the approach of the rainy season",
+          "chinese": "雨季的临近"
+        }
+      ],
+      "note": "名词结构常用 an approach to + 名词或 -ing，如 an approach to teaching。"
+    },
+    "declare": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "宣布；宣告",
+          "english": "declare the meeting open",
+          "chinese": "宣布会议开始"
+        },
+        {
+          "pos": "v.",
+          "meaning": "声明；郑重表示",
+          "english": "declare that the accusations are false",
+          "chinese": "声明这些指控不实"
+        },
+        {
+          "pos": "v.",
+          "meaning": "申报（海关物品或收入等）",
+          "english": "declare valuable goods at customs",
+          "chinese": "在海关申报贵重物品"
+        }
+      ]
+    },
+    "respond": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "回答；回复",
+          "english": "respond to an email before lunch",
+          "chinese": "在午饭前回复一封邮件"
+        },
+        {
+          "pos": "v.",
+          "meaning": "作出反应；回应",
+          "english": "respond calmly to criticism",
+          "chinese": "冷静地回应批评"
+        },
+        {
+          "pos": "v.",
+          "meaning": "对治疗有反应；见效",
+          "english": "the patient responded well to treatment",
+          "chinese": "这位患者对治疗反应良好"
+        }
+      ],
+      "note": "respond to 中的 to 是介词，后接名词、代词或 -ing。"
+    },
+    "optimistic": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "乐观的；抱有希望的",
+          "english": "remain optimistic about the team's chances",
+          "chinese": "对团队成功的机会保持乐观"
+        }
+      ]
+    },
+    "hostile": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "敌意的；不友好的",
+          "english": "a hostile response to a polite request",
+          "chinese": "对礼貌请求的敌意回应"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "恶劣的；不利于生存的",
+          "english": "plants surviving in a hostile environment",
+          "chinese": "在恶劣环境中生存的植物"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "未经被收购方同意的；敌意的（商业）",
+          "english": "resist a hostile takeover bid",
+          "chinese": "抵制一次敌意收购要约"
+        }
+      ]
+    },
+    "mount": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "登上；爬上",
+          "english": "mount the steps to the stage",
+          "chinese": "登上通往舞台的台阶"
+        },
+        {
+          "pos": "v.",
+          "meaning": "逐渐增加；增强",
+          "english": "pressure mounted as the deadline approached",
+          "chinese": "随着截止日期临近，压力越来越大"
+        },
+        {
+          "pos": "v.",
+          "meaning": "组织；发起",
+          "english": "mount a rescue operation before dawn",
+          "chinese": "在黎明前组织一次救援行动"
+        },
+        {
+          "pos": "v.",
+          "meaning": "安装；固定",
+          "english": "mount a camera on the wall",
+          "chinese": "把摄像头安装在墙上"
+        },
+        {
+          "pos": "v.",
+          "meaning": "骑上",
+          "english": "mount a horse without assistance",
+          "chinese": "不借助他人帮助骑上马"
+        },
+        {
+          "pos": "n.",
+          "meaning": "支架；底座",
+          "english": "a sturdy mount for the telescope",
+          "chinese": "一个稳固的望远镜支架"
+        }
+      ],
+      "note": "大写 Mount 也用于山名之前，如 Mount Everest（珠穆朗玛峰）。"
+    },
+    "navigation": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "导航；确定航行路线",
+          "english": "satellite navigation on a fishing boat",
+          "chinese": "渔船上的卫星导航"
+        },
+        {
+          "pos": "n.",
+          "meaning": "网页或软件中的浏览与导航",
+          "english": "improve navigation between the website's pages",
+          "chinese": "改进网站页面之间的导航"
+        }
+      ]
+    },
+    "aspire": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "渴望；有志于",
+          "english": "aspire to become a skilled engineer",
+          "chinese": "立志成为一名技艺精湛的工程师"
+        }
+      ],
+      "note": "常用 aspire to do something，也可用 aspire to + 名词，如 aspire to leadership。"
+    },
+    "decade": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "十年；十年期",
+          "english": "the town has changed over the past decade",
+          "chinese": "过去十年间，这个小镇发生了变化"
+        }
+      ]
+    },
+    "polish": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "擦亮；磨光",
+          "english": "polish the silver spoons with a cloth",
+          "chinese": "用布把银勺擦亮"
+        },
+        {
+          "pos": "v.",
+          "meaning": "润色；改进",
+          "english": "polish the final draft of the speech",
+          "chinese": "润色演讲稿的最终版本"
+        },
+        {
+          "pos": "n.",
+          "meaning": "上光剂；擦亮剂",
+          "english": "apply shoe polish to the leather boots",
+          "chinese": "给皮靴涂上鞋油"
+        },
+        {
+          "pos": "n.",
+          "meaning": "娴熟；精致",
+          "english": "her presentation had real professional polish",
+          "chinese": "她的演示展现出十分娴熟的专业水准"
+        }
+      ],
+      "note": "大写 Polish 通常表示“波兰的、波兰语”，读音也与小写 polish 不同。"
+    },
+    "abundant": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "丰富的；充裕的",
+          "english": "abundant sunshine throughout the summer",
+          "chinese": "整个夏季都很充足的日照"
+        }
+      ]
+    },
+    "tradition": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "传统；习俗",
+          "english": "keep the family tradition of Sunday dinners",
+          "chinese": "保留一家人星期日聚餐的传统"
+        },
+        {
+          "pos": "n.",
+          "meaning": "传承的风格；传统流派",
+          "english": "a poet working in the Romantic tradition",
+          "chinese": "一位沿袭浪漫主义传统的诗人"
+        }
+      ]
+    },
+    "descent": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "下降；降落",
+          "english": "the plane begins its descent toward the airport",
+          "chinese": "飞机开始向机场下降"
+        },
+        {
+          "pos": "n.",
+          "meaning": "下坡路；下降的斜坡",
+          "english": "a steep descent into the valley",
+          "chinese": "一段通往山谷的陡峭下坡路"
+        },
+        {
+          "pos": "n.",
+          "meaning": "血统；出身",
+          "english": "a Canadian writer of Chinese descent",
+          "chinese": "一位华裔加拿大作家"
+        },
+        {
+          "pos": "n.",
+          "meaning": "陷入更坏的状态；恶化",
+          "english": "the region's descent into chaos",
+          "chinese": "这个地区逐渐陷入混乱"
+        }
+      ]
+    },
+    "appropriate": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "合适的；恰当的",
+          "english": "clothing appropriate for a job interview",
+          "chinese": "适合求职面试的服装"
+        },
+        {
+          "pos": "v.",
+          "meaning": "拨出；拨款（正式用语）",
+          "english": "appropriate funds for school repairs",
+          "chinese": "拨款用于学校维修"
+        },
+        {
+          "pos": "v.",
+          "meaning": "挪用；擅自占用",
+          "english": "appropriate public money for private use",
+          "chinese": "挪用公款供私人使用"
+        }
+      ],
+      "note": "形容词末尾通常读 /ət/，动词末尾通常读 /eɪt/；两种词性的主要重音都在第二音节。"
+    },
+    "nuclear": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "核能的；原子核的",
+          "english": "generate electricity using nuclear energy",
+          "chinese": "利用核能发电"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "核心家庭的（父母与子女组成）",
+          "english": "a nuclear family living in a small apartment",
+          "chinese": "住在一间小公寓里的核心家庭"
+        }
+      ],
+      "note": "nuclear family 指父母与子女组成的家庭，与包括祖父母等亲属的 extended family 相对。"
+    },
+    "trolley": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "手推车（主要用于英式英语）",
+          "english": "push a loaded trolley through the supermarket",
+          "chinese": "推着装满东西的手推车穿过超市"
+        },
+        {
+          "pos": "n.",
+          "meaning": "有轨电车（美式英语）",
+          "english": "ride a trolley across town",
+          "chinese": "乘坐有轨电车穿过城镇"
+        }
+      ]
+    },
+    "mercy": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "仁慈；宽恕",
+          "english": "show mercy to a defeated enemy",
+          "chinese": "对战败的敌人表现仁慈"
+        },
+        {
+          "pos": "n.",
+          "meaning": "幸运的事；幸事",
+          "english": "it was a mercy that nobody was hurt",
+          "chinese": "幸好没有人受伤"
+        },
+        {
+          "pos": "n.（固定搭配）",
+          "meaning": "任由……摆布；受……支配",
+          "english": "a small boat at the mercy of the waves",
+          "chinese": "一条任凭海浪摆布的小船"
+        }
+      ]
+    },
+    "monotonous": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "单调乏味的",
+          "english": "the monotonous task of entering figures all day",
+          "chinese": "整天录入数字这种单调乏味的工作"
+        }
+      ]
+    },
+    "electron": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "电子",
+          "english": "an electron carries a negative charge",
+          "chinese": "电子带负电荷"
+        }
+      ]
+    },
+    "acceptance": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "接受；认可",
+          "english": "growing public acceptance of the new rules",
+          "chinese": "公众对新规则日益增加的认可"
+        },
+        {
+          "pos": "n.",
+          "meaning": "同意接受（邀请、提议等）",
+          "english": "her acceptance of the job offer",
+          "chinese": "她对这份工作邀约的接受"
+        },
+        {
+          "pos": "n.",
+          "meaning": "被接纳；获准加入",
+          "english": "receive a letter of acceptance from the college",
+          "chinese": "收到学院的录取通知书"
+        }
+      ]
+    },
+    "virus": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "病毒",
+          "english": "a virus spreading through close contact",
+          "chinese": "一种通过密切接触传播的病毒"
+        },
+        {
+          "pos": "n.",
+          "meaning": "计算机病毒",
+          "english": "scan the laptop for a computer virus",
+          "chinese": "扫描笔记本电脑，检查是否有计算机病毒"
+        }
+      ]
+    },
+    "despair": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "绝望",
+          "english": "a sense of despair after repeated failures",
+          "chinese": "多次失败之后的绝望感"
+        },
+        {
+          "pos": "v.",
+          "meaning": "绝望；失去希望",
+          "english": "never despair of finding a solution",
+          "chinese": "永远不要对找到解决办法失去希望"
+        }
+      ],
+      "note": "动词常用 despair of + 名词或 -ing；in despair 表示“绝望地”。"
+    },
+    "intrude": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "打扰；不请自来地介入",
+          "english": "intrude on a private conversation",
+          "chinese": "打扰一场私人谈话"
+        },
+        {
+          "pos": "v.",
+          "meaning": "侵扰；侵入私人领域",
+          "english": "cameras intrude into people's private lives",
+          "chinese": "摄像头侵扰人们的私生活"
+        },
+        {
+          "pos": "v.",
+          "meaning": "不由自主地闯入（思想等）",
+          "english": "unwanted memories intrude on her thoughts",
+          "chinese": "不愿回想的记忆闯入她的思绪"
+        }
+      ]
+    },
+    "facility": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "设施；设备（常用复数）",
+          "english": "modern sports facilities near the campus",
+          "chinese": "校园附近的现代化体育设施"
+        },
+        {
+          "pos": "n.",
+          "meaning": "提供特定服务的场所或机构",
+          "english": "a medical facility serving rural communities",
+          "chinese": "一家为农村社区服务的医疗机构"
+        },
+        {
+          "pos": "n.",
+          "meaning": "能力；天赋",
+          "english": "her facility for learning foreign languages",
+          "chinese": "她学习外语的天赋"
+        },
+        {
+          "pos": "n.",
+          "meaning": "功能；便利条件",
+          "english": "a search facility built into the software",
+          "chinese": "软件内置的搜索功能"
+        }
+      ]
+    },
+    "explicit": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "明确的；清楚直白的",
+          "english": "explicit instructions on how to reset the device",
+          "chinese": "关于如何重置设备的明确说明"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "露骨的（尤指性或暴力内容）",
+          "english": "a film containing sexually explicit scenes",
+          "chinese": "一部含有露骨性描写镜头的电影"
+        }
+      ]
+    },
+    "mercury": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "汞；水银",
+          "english": "liquid mercury inside an old thermometer",
+          "chinese": "一支旧温度计里的液态水银"
+        },
+        {
+          "pos": "专有名词",
+          "meaning": "水星（Mercury）",
+          "english": "Mercury is the closest planet to the Sun",
+          "chinese": "水星是距离太阳最近的行星"
+        }
+      ],
+      "note": "元素“汞”用小写 mercury；行星“水星”以及罗马神话中的墨丘利用大写 Mercury。"
+    },
+    "magnificent": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "壮丽的；宏伟的",
+          "english": "a magnificent view of the snow-covered mountains",
+          "chinese": "白雪覆盖的群山的壮丽景色"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "极出色的；令人赞叹的",
+          "english": "a magnificent performance in the final match",
+          "chinese": "在决赛中的出色表现"
+        }
+      ]
+    },
+    "encyclopedia": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "百科全书",
+          "english": "look up volcanoes in an illustrated encyclopedia",
+          "chinese": "在一本图解百科全书中查阅火山知识"
+        }
+      ],
+      "note": "也可拼作 encyclopaedia，尤其见于英式英语。"
+    },
+    "superfluous": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "多余的；不必要的",
+          "english": "remove superfluous words from the paragraph",
+          "chinese": "删去段落中多余的词语"
+        }
+      ]
+    },
+    "variation": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "变化；差异",
+          "english": "seasonal variation in electricity demand",
+          "chinese": "电力需求的季节性变化"
+        },
+        {
+          "pos": "n.",
+          "meaning": "变体；略有不同的版本",
+          "english": "a local variation on the traditional recipe",
+          "chinese": "传统食谱的一种本地变体"
+        },
+        {
+          "pos": "n.",
+          "meaning": "变奏；变奏曲（音乐）",
+          "english": "a piano theme with five variations",
+          "chinese": "一个带有五段变奏的钢琴主题"
+        }
+      ]
+    },
+    "anchor": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "锚",
+          "english": "drop the anchor in a sheltered bay",
+          "chinese": "在避风的海湾中抛锚"
+        },
+        {
+          "pos": "n.",
+          "meaning": "新闻节目主持人（主要用于美式英语）",
+          "english": "the anchor of the evening news",
+          "chinese": "晚间新闻的主持人"
+        },
+        {
+          "pos": "n.",
+          "meaning": "支柱；提供稳定感的人或物",
+          "english": "her family remained her anchor in difficult times",
+          "chinese": "在困难时期，家人始终是她的精神支柱"
+        },
+        {
+          "pos": "v.",
+          "meaning": "抛锚停泊",
+          "english": "anchor the boat near the island",
+          "chinese": "把船抛锚停泊在岛的附近"
+        },
+        {
+          "pos": "v.",
+          "meaning": "牢牢固定",
+          "english": "anchor the tent firmly to the ground",
+          "chinese": "把帐篷牢牢固定在地面上"
+        },
+        {
+          "pos": "v.",
+          "meaning": "主持新闻节目（主要用于美式英语）",
+          "english": "anchor a live news programme",
+          "chinese": "主持一档直播新闻节目"
+        }
+      ]
+    },
+    "quit": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "辞去；离职",
+          "english": "quit her office job to start a bakery",
+          "chinese": "辞去办公室工作，去开一家面包店"
+        },
+        {
+          "pos": "v.",
+          "meaning": "停止；戒掉",
+          "english": "quit smoking for good",
+          "chinese": "彻底戒烟"
+        },
+        {
+          "pos": "v.",
+          "meaning": "退出；停止运行",
+          "english": "save the file before you quit the application",
+          "chinese": "退出应用程序之前先保存文件"
+        }
+      ],
+      "note": "quit doing something 表示“停止做某事”；过去式和过去分词通常仍为 quit。"
+    },
+    "glory": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "荣誉；荣耀",
+          "english": "win glory for the whole team",
+          "chinese": "为整个团队赢得荣誉"
+        },
+        {
+          "pos": "n.",
+          "meaning": "壮丽；辉煌的景象",
+          "english": "the autumn forest in all its glory",
+          "chinese": "尽显绚丽之美的秋日森林"
+        },
+        {
+          "pos": "v.",
+          "meaning": "因……而喜悦自豪（glory in）",
+          "english": "glory in the success of her students",
+          "chinese": "为她学生的成功感到喜悦自豪"
+        }
+      ]
+    },
+    "spicy": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "辛辣的；加了香料的",
+          "english": "a bowl of spicy noodles with fresh chilli",
+          "chinese": "一碗加了新鲜辣椒的辣面"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "刺激的；带有性意味的（非正式）",
+          "english": "a newspaper full of spicy gossip",
+          "chinese": "一份充满刺激性桃色八卦的报纸"
+        }
+      ],
+      "note": "spicy 通常指食物辛辣，但也可强调香料味浓，并不一定辣。"
+    },
+    "geology": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "地质学",
+          "english": "study geology to understand how rocks form",
+          "chinese": "学习地质学，以了解岩石如何形成"
+        },
+        {
+          "pos": "n.",
+          "meaning": "某地区的地质特征",
+          "english": "the complex geology of the coastal region",
+          "chinese": "沿海地区复杂的地质特征"
+        }
+      ]
+    },
+    "multiply": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "乘；相乘",
+          "english": "multiply seven by eight",
+          "chinese": "七乘以八"
+        },
+        {
+          "pos": "v.",
+          "meaning": "使大幅增加；使成倍增加",
+          "english": "multiply the risks by ignoring safety rules",
+          "chinese": "因忽视安全规则而大幅增加风险"
+        },
+        {
+          "pos": "v.",
+          "meaning": "繁殖；迅速增多",
+          "english": "bacteria multiply rapidly in warm conditions",
+          "chinese": "细菌在温暖的条件下迅速繁殖"
+        }
+      ]
+    },
+    "consist": {
+      "contexts": [
+        {
+          "pos": "v.",
+          "meaning": "由……组成（consist of）",
+          "english": "the committee consists of seven members",
+          "chinese": "这个委员会由七名成员组成"
+        },
+        {
+          "pos": "v.",
+          "meaning": "在于；以……为主要内容（consist in）",
+          "english": "the challenge consists in finding reliable evidence",
+          "chinese": "难点在于找到可靠的证据"
+        }
+      ],
+      "note": "consist of 强调组成部分，consist in 强调本质或主要内容；consist 通常不用被动语态。"
+    },
+    "minor": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "轻微的；较小的；次要的",
+          "english": "a minor injury that needs no treatment",
+          "chinese": "一处无需治疗的轻伤"
+        },
+        {
+          "pos": "n.",
+          "meaning": "未成年人",
+          "english": "the law protects the rights of minors",
+          "chinese": "法律保护未成年人的权利"
+        },
+        {
+          "pos": "n.",
+          "meaning": "辅修科目（美式英语）",
+          "english": "choose history as a minor",
+          "chinese": "选择历史作为辅修科目"
+        },
+        {
+          "pos": "v.",
+          "meaning": "辅修（美式英语，minor in）",
+          "english": "major in physics and minor in music",
+          "chinese": "主修物理，辅修音乐"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "小调的（音乐）",
+          "english": "a melody in a minor key",
+          "chinese": "一段小调旋律"
+        }
+      ]
+    },
+    "contagious": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "有传染性的",
+          "english": "a highly contagious childhood disease",
+          "chinese": "一种传染性很强的儿童疾病"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "有感染力的；容易传开的",
+          "english": "her contagious enthusiasm lifted the team's spirits",
+          "chinese": "她富有感染力的热情振奋了团队的士气"
+        }
+      ]
+    },
+    "faithful": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "忠诚的；忠实的",
+          "english": "remain faithful to a lifelong friend",
+          "chinese": "始终忠于一位终身挚友"
+        },
+        {
+          "pos": "adj.",
+          "meaning": "如实的；忠于原作的",
+          "english": "a translation faithful to the original text",
+          "chinese": "一份忠于原文的译文"
+        },
+        {
+          "pos": "n.（复数）",
+          "meaning": "忠实支持者（the faithful）",
+          "english": "the party faithful",
+          "chinese": "该党的忠实支持者"
+        }
+      ],
+      "note": "the faithful 也可指某一宗教的信众；这一名词用法具有复数含义。"
+    },
+    "snobbish": {
+      "contexts": [
+        {
+          "pos": "adj.",
+          "meaning": "势利的；自命不凡的",
+          "english": "a snobbish attitude toward people without degrees",
+          "chinese": "对没有学位的人抱有的势利态度"
+        }
+      ]
+    },
+    "statistics": {
+      "contexts": [
+        {
+          "pos": "n.（学科名）",
+          "meaning": "统计学",
+          "english": "statistics is useful in medical research",
+          "chinese": "统计学在医学研究中很有用"
+        },
+        {
+          "pos": "n.（复数）",
+          "meaning": "统计数据",
+          "english": "the latest statistics show a fall in unemployment",
+          "chinese": "最新统计数据显示失业人数下降"
+        }
+      ],
+      "note": "表示学科时按单数处理（statistics is）；表示多项统计数据时按复数处理（statistics show）。"
+    },
+    "alloy": {
+      "contexts": [
+        {
+          "pos": "n.",
+          "meaning": "合金",
+          "english": "an aluminium alloy used in aircraft parts",
+          "chinese": "一种用于飞机零件的铝合金"
+        },
+        {
+          "pos": "v.",
+          "meaning": "把金属熔合成合金（冶金用语）",
+          "english": "alloy copper with tin to make bronze",
+          "chinese": "将铜和锡熔合制成青铜"
+        }
+      ]
+    }
+  }
 }

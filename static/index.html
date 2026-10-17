@@ -21,6 +21,12 @@
     </aside>
     <main>
       <div class="page-heading"><div><div class="eyebrow">YOUR DAILY WORD PRACTICE</div><h1>把单词，慢慢变熟。</h1></div><span class="chapter-decoration" aria-hidden="true">Aa</span></div>
+      <section class="global-search" aria-labelledby="search-heading">
+        <div class="search-heading"><h2 id="search-heading">全局单词搜索</h2><button id="search-all" type="button">查看全部单词</button></div>
+        <form id="search-form" role="search"><label for="global-query" class="search-label">搜索所有词本（含简单词）</label><div class="search-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="global-query" type="search" placeholder="输入单词或片段，如 infer、tech…" maxlength="200" autocomplete="off" spellcheck="false" autocapitalize="off" aria-controls="search-results" aria-describedby="search-status"><button id="search-clear" type="button" hidden>清除</button><button class="search-submit" type="submit">搜索</button></div></form>
+        <p id="search-status" class="search-status" role="status">正在汇总所有词本…</p>
+        <div id="search-output" hidden><ol id="search-results" class="search-results" aria-label="全局单词搜索结果"></ol><div id="search-pagination" class="search-pagination"><button id="search-previous" type="button">上一页</button><span id="search-page"></span><button id="search-next" type="button">下一页</button></div><button id="search-collapse" class="search-collapse" type="button">收起结果</button></div>
+      </section>
       <div id="app-error" class="app-error" role="alert" hidden></div>
       <section class="study-panel" aria-label="单词学习区">
         <div class="study-toolbar"><div class="book-heading"><span class="book-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5a2 2 0 0 1 0-4h14M5 4v12M9 8h6"/></svg></span><div><h2 id="book-name">选择一本单词本</h2><span id="book-path" class="muted">从左侧打开文件夹和词表</span></div></div><div class="mode-switch" aria-label="学习模式"><button id="read-mode" aria-pressed="true">阅读模式</button><button id="learn-mode" aria-pressed="false">拼写学习</button></div></div>
@@ -31,10 +37,11 @@
           <div class="word-columns">
           <div class="word-primary">
           <div class="word-stage"><div class="word-kicker"><span id="mode-label">READ & REMEMBER</span><span id="word-stars" class="word-stars" aria-label="柯林斯词频星级"></span></div><div id="word-display"><div class="word-line"><h2 id="word-title"></h2><button id="speak" class="icon-button sound-button" title="朗读单词" aria-label="朗读单词"><svg viewBox="0 0 24 24"><path d="m11 5-6 4H2v6h3l6 4zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button></div><div id="phonetic" class="phonetic"></div></div><div id="recall-title" hidden><h2>这个词，你还记得吗？</h2><p>根据下面的释义，写出英文单词。</p></div><div id="reading-prompt" class="reading-prompt" hidden aria-live="polite"></div><div id="translations" class="translations"></div><span id="word-tags" class="word-tags"></span></div>
+          <section id="memory-contexts" class="memory-contexts" aria-labelledby="context-title" hidden><div class="context-heading"><h3 id="context-title">语境记忆</h3><span>学习搭配</span></div><p id="context-note" class="context-note" hidden></p><ol id="context-list" class="context-list"></ol></section>
           <div id="learn-area" class="learn-area" hidden><label for="answer">你的答案</label><div class="answer-wrap"><input id="answer" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="输入英文单词…" aria-describedby="feedback"><button id="check-answer">检查 <kbd>Enter</kbd></button></div><div id="feedback" class="feedback" aria-live="polite">← / → 切换单词；按住 Tab 提示；回车检查；空格继续。</div><button id="continue-answer" class="continue-answer" disabled>检查后按空格继续 <kbd>Space</kbd></button></div>
           <div id="word-actions" class="word-actions" hidden><button id="move-word" type="button">移入简单词</button></div>
           </div>
-          <section id="reading-details" class="reading-details" aria-label="英文释义与词形"><h3>英文释义</h3><div id="definitions" class="definitions"></div><div id="word-forms-section" class="word-forms-section"><h3>词形变化</h3><div id="forms" class="forms"></div></div></section>
+          <section id="reading-details" class="reading-details" aria-label="英文释义与词形"><div id="wordnet-reading"></div><h3>ECDICT · 英文释义</h3><div id="definitions" class="definitions"></div><div id="word-forms-section" class="word-forms-section"><h3>词形变化</h3><div id="forms" class="forms"></div></div></section>
           </div>
         </div>
         <section id="batch-content" class="batch-content" aria-label="批量背诵" hidden><p id="batch-summary" class="batch-summary" role="status"></p><div id="batch-scroll" class="batch-scroll" tabindex="0" role="region" aria-label="单词组，可上下滚动"><div id="batch-list" class="batch-list"></div></div></section>
@@ -42,7 +49,7 @@
         <footer class="study-footer"><button id="previous" class="text-button" disabled>上一个</button><div class="keyboard-guide" id="keyboard-guide"><kbd>Space</kbd><span>下一个单词</span></div><button id="next" class="primary-button" disabled>下一个 <kbd>Space</kbd></button></footer>
       </section>
       <div class="below-panel"><span><span class="mini-mark">✦</span>不赶进度，记住一个也是收获。</span><span id="session-stats">阅读释义 · 练习拼写</span></div>
-      <footer class="page-footer"><span>释义来源：<a href="https://github.com/skywind3000/ECDICT" target="_blank" rel="noreferrer">ECDICT 英汉词典</a></span><button id="save-status" class="save-status" type="button" disabled aria-live="polite">分类与进度保存在词本 JSON</button></footer>
+      <footer class="page-footer"><span>释义来源：<a href="https://github.com/skywind3000/ECDICT" target="_blank" rel="noreferrer">ECDICT</a> · <a href="https://en-word.net/" target="_blank" rel="noreferrer">Open English WordNet</a>（基于 <a href="https://wordnet.princeton.edu/" target="_blank" rel="noreferrer">Princeton WordNet</a>，<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>）</span><button id="save-status" class="save-status" type="button" disabled aria-live="polite">分类与进度保存在词本 JSON</button></footer>
     </main>
   </div>
   <script type="module" src="/app.js"></script>

@@ -24,13 +24,16 @@ class AppTests(unittest.TestCase):
             conn.commit()
         self.book_patch = patch.object(app, 'BOOK_ROOT', self.books)
         self.db_patch = patch.object(app, 'DICT_PATH', self.db)
+        self.wordnet_patch = patch.object(app, 'WORDNET_PATH', self.root / 'not-installed-wordnet.db')
         self.book_patch.start()
         self.db_patch.start()
+        self.wordnet_patch.start()
         app.lookup.cache_clear()
 
     def tearDown(self):
         self.book_patch.stop()
         self.db_patch.stop()
+        self.wordnet_patch.stop()
         app.lookup.cache_clear()
         self.assertTrue(self.root.resolve().is_relative_to((Path(__file__).resolve().parents[1] / '.runtime').resolve()))
         self.temp.cleanup()
@@ -175,6 +178,115 @@ class AppTests(unittest.TestCase):
             with self.assertRaises(app.UserError):
                 app.update_book({'revision': 0, **payload})
         self.assertEqual((self.books / 'WL1.json').read_bytes(), before)
+
+    def test_memory_contexts_follow_the_word_through_moves_and_progress_saves(self):
+        self.make_book()
+        file = self.books / 'WL1.json'
+        document = json.loads(file.read_text(encoding='utf-8'))
+        detail = {'contexts': [
+            {'pos': 'adj.', 'meaning': '轻微的', 'english': 'a minor mistake', 'chinese': '一个小错误'},
+            {'pos': 'n.', 'meaning': '未成年人', 'english': 'protect minors', 'chinese': '保护未成年人'},
+        ], 'note': '按常见义项练习'}
+        document['word_details'] = {'minor': detail}
+        file.write_text(json.dumps(document, ensure_ascii=False), encoding='utf-8')
+        loaded = app.load_book('WL1.json')
+        entry = next(entry for entry in loaded['words'] if entry['word'] == 'minor')
+        self.assertEqual(entry['contexts'], detail['contexts'])
+        self.assertEqual(entry['context_note'], detail['note'])
+        app.update_book({'path': 'WL1.json', 'revision': 0, 'progress': {}})
+        moved = app.update_book({'path': 'WL1.json', 'revision': 1, 'word': 'minor', 'collection': 'easy'}, classify=True)
+        self.assertEqual(next(entry for entry in moved['words'] if entry['word'] == 'minor')['contexts'], detail['contexts'])
+        app.update_book({'path': 'WL1.json', 'revision': 2, 'word': 'minor', 'collection': 'main'}, classify=True)
+        self.assertEqual(json.loads(file.read_text(encoding='utf-8'))['word_details']['minor'], detail)
+
+    def test_memory_contexts_are_optional_and_support_a_spelling_display_note(self):
+        self.make_book()
+        file = self.books / 'WL1.json'
+        document = json.loads(file.read_text(encoding='utf-8'))
+        document['word_details'] = {'minor': {'display_word': 'MINOR', 'contexts': [
+            {'pos': 'adj.', 'meaning': '较小的', 'english': 'a MINOR problem', 'chinese': '一个小问题'},
+        ]}}
+        file.write_text(json.dumps(document), encoding='utf-8')
+        entries = {entry['word']: entry for entry in app.load_book('WL1.json')['words']}
+        self.assertEqual(entries['minor']['word'], 'minor')
+        self.assertEqual(entries['minor']['context_headword'], 'MINOR')
+        self.assertEqual(entries['faithful']['contexts'], [])
+        self.assertEqual(entries['faithful']['context_note'], '')
+
+    def test_invalid_memory_contexts_report_the_field_without_overwriting_the_file(self):
+        self.make_book()
+        file = self.books / 'WL1.json'
+        document = json.loads(file.read_text(encoding='utf-8'))
+        document['word_details'] = {'minor': {'contexts': [{'english': 'a minor mistake'}]}}
+        file.write_text(json.dumps(document), encoding='utf-8')
+        before = file.read_bytes()
+        with self.assertRaises(app.UserError) as caught:
+            app.load_book('WL1.json')
+        self.assertIn('chinese', caught.exception.message)
+        self.assertEqual(file.read_bytes(), before)
+
+    def test_global_search_deduplicates_all_collections_without_rewriting_books(self):
+        folder = self.books / 'exam'
+        folder.mkdir()
+        for name, words, easy in [('WL10', [], ['ＭＩＮＯＲ']), ('WL2', ['minor', 'inference'], [])]:
+            app.write_document(folder / (name + '.json'), {'words': words, 'easy_words': easy, 'progress': {'main': {'read': 1}}, 'revision': 3})
+        before = {path: path.read_bytes() for path in self.books.rglob('*.json')}
+        result = app.search_wordbooks(' Minor ')
+        self.assertEqual((result['books'], result['occurrences'], result['unique_words'], result['total']), (2, 3, 2, 1))
+        self.assertEqual(result['results'][0]['word'], 'minor')
+        self.assertEqual([(source['path'], source['collection']) for source in result['results'][0]['sources']],
+                         [('exam/WL2.json', 'main'), ('exam/WL10.json', 'easy')])
+        self.assertEqual(result['results'][0]['translation'], '较小的')
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+
+    def test_global_search_ranks_exact_then_prefix_then_other_substrings(self):
+        (self.books / 'sample.txt').write_text('stake\nundertake\ntakeoff\nTAKE\ntaken\novertake\n', encoding='utf-8')
+        result = app.search_wordbooks('TaKe')
+        self.assertEqual([entry['word'] for entry in result['results']], ['TAKE', 'taken', 'takeoff', 'overtake', 'stake', 'undertake'])
+        self.assertEqual([entry['match'] for entry in result['results']], ['exact', 'prefix', 'prefix', 'contains', 'contains', 'contains'])
+        self.assertTrue((self.books / 'sample.txt').exists())
+        self.assertFalse((self.books / 'sample.json').exists())
+
+    def test_global_search_matches_related_words_and_literal_fragments(self):
+        (self.books / 'sample.txt').write_text('infer\ninference\ntechnology\ntechnical\npolytechnic\npetition\ncompetition\n', encoding='utf-8')
+        self.assertEqual([entry['word'] for entry in app.search_wordbooks('infer')['results']], ['infer', 'inference'])
+        self.assertEqual([entry['word'] for entry in app.search_wordbooks('TECH')['results']], ['technical', 'technology', 'polytechnic'])
+        self.assertEqual([entry['word'] for entry in app.search_wordbooks('petition')['results']], ['petition', 'competition'])
+        self.assertEqual(app.search_wordbooks('.*')['total'], 0)
+
+    def test_global_search_lists_all_words_and_paginates_after_deduplication(self):
+        self.make_book()
+        (self.books / 'WL2.txt').write_text('MINOR\ninfer\n', encoding='utf-8')
+        first, second = app.search_wordbooks('', limit=2), app.search_wordbooks('', offset=2, limit=2)
+        self.assertEqual(first['total'], 4)
+        self.assertEqual([entry['word'] for entry in first['results'] + second['results']], ['contagious', 'faithful', 'infer', 'minor'])
+        self.assertEqual(app.search_wordbooks('', offset=10)['results'], [])
+        for arguments in ({'offset': -1}, {'limit': 0}, {'limit': 101}, {'query': 'a' * 201}):
+            with self.assertRaises(app.UserError):
+                app.search_wordbooks(**arguments)
+
+    def test_global_search_refreshes_sources_and_external_file_changes(self):
+        self.make_book()
+        self.assertEqual(app.search_wordbooks('minor')['results'][0]['sources'][0]['collection'], 'main')
+        app.update_book({'path': 'WL1.json', 'word': 'minor', 'collection': 'easy', 'revision': 0}, classify=True)
+        self.assertEqual(app.search_wordbooks('minor')['results'][0]['sources'][0]['collection'], 'easy')
+        (self.books / 'new.txt').write_text('newword\n', encoding='utf-8')
+        self.assertEqual(app.search_wordbooks('newword')['total'], 1)
+        (self.books / 'new.txt').unlink()
+        self.assertEqual(app.search_wordbooks('newword')['total'], 0)
+
+    def test_global_search_skips_hidden_and_broken_books_and_works_without_dictionary(self):
+        (self.books / 'valid.txt').write_text('infer\n', encoding='utf-8')
+        (self.books / '.backup.txt').write_text('privateword\n', encoding='utf-8')
+        hidden = self.books / '.backup'
+        hidden.mkdir()
+        (hidden / 'old.txt').write_text('privateword\n', encoding='utf-8')
+        (self.books / 'broken.json').write_text('{', encoding='utf-8')
+        with patch.object(app, 'DICT_PATH', self.root / 'missing.db'):
+            result = app.search_wordbooks('infer')
+        self.assertEqual((result['books'], result['unique_words'], result['total']), (1, 1, 1))
+        self.assertEqual(result['errors'][0]['path'], 'broken.json')
+        self.assertEqual(app.search_wordbooks('privateword')['total'], 0)
 
 
 if __name__ == '__main__':
