@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -287,6 +288,139 @@ class AppTests(unittest.TestCase):
         self.assertEqual((result['books'], result['unique_words'], result['total']), (1, 1, 1))
         self.assertEqual(result['errors'][0]['path'], 'broken.json')
         self.assertEqual(app.search_wordbooks('privateword')['total'], 0)
+
+    def test_refresh_imports_new_books_recursively_then_indexes_all_sources(self):
+        self.make_book()
+        app.update_book({'path': 'WL1.json', 'word': 'minor', 'collection': 'easy', 'revision': 0}, classify=True)
+        original = (self.books / 'WL1.json').read_bytes()
+        self.assertEqual(app.search_wordbooks('minor')['total'], 1)
+        for number in range(1, 6):
+            folder = self.books / ('IELTS/nested' if number == 3 else 'IELTS')
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / f'WL{number:02}.txt').write_text(f'minor\nnewword{number}\n', encoding='utf-8')
+        summary = app.refresh_wordbooks()
+        self.assertEqual((summary['books'], summary['unique_words'], summary['occurrences']), (6, 8, 13))
+        self.assertEqual(len(summary['imported_books']), 5)
+        self.assertEqual(summary['errors'], [])
+        sources = app.search_wordbooks('minor')['results'][0]['sources']
+        self.assertEqual(len(sources), 6)
+        self.assertTrue(all(source['path'].endswith('.json') for source in sources))
+        self.assertIn({'path': 'WL1.json', 'name': 'WL1', 'collection': 'easy'}, sources)
+        self.assertIn({'path': 'IELTS/nested/WL03.json', 'name': 'WL03', 'collection': 'main'}, sources)
+        self.assertEqual((self.books / 'WL1.json').read_bytes(), original)
+        self.assertEqual((self.root / '.runtime/wordbook-backup/IELTS/WL01.txt').read_text(encoding='utf-8'), 'minor\nnewword1\n')
+        self.assertEqual(app.refresh_wordbooks()['imported_books'], [])
+        self.assertEqual((self.books / 'WL1.json').read_bytes(), original)
+        app.write_document(self.books / 'IELTS/new.json', {'words': ['infer'], 'easy_words': []})
+        self.assertEqual(app.refresh_wordbooks()['books'], 7)
+        self.assertEqual(app.search_wordbooks('infer')['results'][0]['sources'][0]['path'], 'IELTS/new.json')
+
+    def test_refresh_reports_invalid_books_without_blocking_good_imports(self):
+        self.make_book()
+        folder = self.books / 'IELTS'
+        folder.mkdir()
+        (folder / 'good.txt').write_text('minor\n', encoding='utf-8')
+        broken = folder / 'broken.json'
+        broken.write_text('{', encoding='utf-8')
+        summary = app.refresh_wordbooks()
+        self.assertEqual(summary['books'], 2)
+        self.assertEqual(summary['imported_books'], ['IELTS/good.json'])
+        self.assertEqual([item['path'] for item in summary['errors']], ['IELTS/broken.json'])
+        self.assertEqual(len(app.search_wordbooks('minor')['results'][0]['sources']), 2)
+        self.assertEqual(broken.read_text(encoding='utf-8'), '{')
+
+    def test_explicit_refresh_rebuilds_index_even_if_file_metadata_is_preserved(self):
+        self.make_book()
+        book = self.books / 'WL1.json'
+        self.assertEqual(app.search_wordbooks('minor')['total'], 1)
+        stamp = book.stat()
+        book.write_bytes(book.read_bytes().replace(b'"minor"', b'"other"'))
+        os.utime(book, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+        app.refresh_wordbooks()
+        self.assertEqual(app.search_wordbooks('minor')['total'], 0)
+        self.assertEqual(app.search_wordbooks('other')['total'], 1)
+
+    def test_editor_exposes_only_the_combined_vocabulary_and_preserves_its_order(self):
+        self.make_book()
+        file = self.books / 'WL1.json'
+        document = json.loads(file.read_text(encoding='utf-8'))
+        document.update(words=['faithful', 'contagious'], easy_words=['minor'], word_order=['minor', 'faithful', 'contagious'])
+        document['word_details'] = {'minor': {'contexts': [{'pos': 'adj.', 'meaning': '小的', 'english': 'a minor issue', 'chinese': '一个小问题'}]}}
+        app.write_document(file, document)
+        before = file.read_bytes()
+        with patch.object(app, 'DICT_PATH', self.root / 'missing.db'):
+            result = app.editable_book('WL1.json')
+            self.assertEqual(app.editable_books()['books'], [{'path': 'WL1.json', 'name': 'WL1'}])
+        self.assertEqual(set(result), {'path', 'name', 'words', 'revision', 'etag'})
+        self.assertEqual(result['words'], ['minor', 'faithful', 'contagious'])
+        self.assertEqual(file.read_bytes(), before)
+
+    def test_editor_retains_existing_classifications_contexts_and_progress_and_updates_search(self):
+        self.make_book()
+        file = self.books / 'WL1.json'
+        document = json.loads(file.read_text(encoding='utf-8'))
+        detail = {'contexts': [{'pos': 'adj.', 'meaning': '小的', 'english': 'a minor issue', 'chinese': '一个小问题'}]}
+        document.update(words=['faithful', 'contagious'], easy_words=['minor'], word_order=['minor', 'faithful', 'contagious'])
+        document['word_details'] = {'minor': detail, 'faithful': detail}
+        document['progress'] = {'main': {'order': ['faithful', 'contagious'], 'read_order': ['faithful', 'contagious'], 'read': 1, 'learn': 1, 'correct': [0], 'attempted': [0]}}
+        document['settings'] = {'batch_size': 5}
+        app.write_document(file, document)
+        before = file.read_bytes()
+        snapshot = app.editable_book('WL1.json')
+        app.search_wordbooks('faithful')
+        result = app.edit_book({**snapshot, 'words': ['contagious', 'novel', 'minor']})
+        saved = json.loads(file.read_text(encoding='utf-8'))
+        self.assertEqual(result['words'], ['contagious', 'novel', 'minor'])
+        self.assertEqual(saved['words'], ['contagious', 'novel'])
+        self.assertEqual(saved['easy_words'], ['minor'])
+        self.assertEqual(saved['word_details'], {'minor': detail})
+        self.assertEqual(saved['progress'], document['progress'])
+        self.assertEqual(saved['settings'], document['settings'])
+        self.assertEqual(app.search_wordbooks('faithful')['total'], 0)
+        self.assertEqual(app.search_wordbooks('novel')['total'], 1)
+        backups = list((self.root / '.runtime/wordbook-edits').glob('WL1-*.json'))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), before)
+        app.update_book({'path': 'WL1.json', 'revision': result['revision'], 'word': 'novel', 'collection': 'easy'}, classify=True)
+        self.assertEqual(app.editable_book('WL1.json')['words'], result['words'])
+
+    def test_editor_rejects_stale_and_invalid_changes_without_overwriting_the_file(self):
+        self.make_book()
+        snapshot = app.editable_book('WL1.json')
+        file = self.books / 'WL1.json'
+        before = file.read_bytes()
+        for words in ('minor', [None], ['x' * 501], ['one\ntwo']):
+            with self.assertRaises(app.UserError):
+                app.edit_book({**snapshot, 'words': words})
+            self.assertEqual(file.read_bytes(), before)
+        app.update_book({'path': 'WL1.json', 'revision': 0, 'word': 'minor', 'collection': 'easy'}, classify=True)
+        latest = file.read_bytes()
+        with self.assertRaises(app.UserError) as caught:
+            app.edit_book({**snapshot, 'words': ['newword']})
+        self.assertEqual(caught.exception.status, 409)
+        self.assertEqual(file.read_bytes(), latest)
+        snapshot = app.editable_book('WL1.json')
+        document = json.loads(latest)
+        document['external_note'] = 'changed without revision increment'
+        app.write_document(file, document)
+        latest = file.read_bytes()
+        with self.assertRaises(app.UserError) as caught:
+            app.edit_book({**snapshot, 'words': ['newword']})
+        self.assertEqual(caught.exception.status, 409)
+        self.assertEqual(file.read_bytes(), latest)
+
+    def test_editor_deduplicates_input_allows_clearing_and_does_not_rewrite_unchanged_books(self):
+        self.make_book()
+        snapshot = app.editable_book('WL1.json')
+        file = self.books / 'WL1.json'
+        before = file.read_bytes()
+        same = app.edit_book({**snapshot, 'words': [' minor ', 'ＭＩＮＯＲ', '', 'faithful', 'contagious']})
+        self.assertEqual(same['revision'], snapshot['revision'])
+        self.assertEqual(file.read_bytes(), before)
+        cleared = app.edit_book({**snapshot, 'words': []})
+        self.assertEqual(cleared['words'], [])
+        self.assertEqual(app.load_book('WL1.json')['words'], [])
+        self.assertEqual(app.search_wordbooks('minor')['total'], 0)
 
 
 if __name__ == '__main__':

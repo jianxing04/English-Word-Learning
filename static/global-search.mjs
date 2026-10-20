@@ -1,4 +1,4 @@
-export function setupGlobalSearch({ api, openWord }) {
+export function setupGlobalSearch({ api, openWord, folderName = name => name }) {
   const $ = id => document.getElementById(id);
   const pageSize = 30;
   let sequence = 0, timer, active = false, showAll = false, offset = 0;
@@ -35,7 +35,8 @@ export function setupGlobalSearch({ api, openWord }) {
       const meaning = document.createElement('p'); meaning.className = 'search-meaning'; meaning.textContent = (entry.translation || '暂无中文释义').replace(/\\n/g, '\n');
       const sources = document.createElement('div'); sources.className = 'search-sources';
       for (const source of entry.sources) {
-        const button = document.createElement('button'); button.type = 'button'; button.textContent = `${source.name} · ${source.collection === 'easy' ? '简单词' : '原词本'}`;
+        const location = [...source.path.split('/').slice(0, -1).map(folderName), source.name].join(' / ');
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = `${location} · ${source.collection === 'easy' ? '简单词' : '原词本'}`;
         button.title = `在 ${source.path} 中查看 ${entry.word}`;
         button.onclick = async () => {
           button.disabled = true;

@@ -2,9 +2,10 @@ import { checkAnswer, spaceAction, normalizeAnswer } from './study-state.mjs';
 import { splitWordbook, alignProgress, shuffleUnread } from './wordbook-state.mjs';
 import { buildBatch, batchDraft, nextBatchOffset, batchCanAdvance, resetBatchRound, clearBatchInputs, shuffleBatchRows } from './batch-state.mjs';
 import { setupGlobalSearch } from './global-search.mjs';
+import { setupWordbookEditor } from './wordbook-editor.mjs';
 
 const $ = id => document.getElementById(id);
-const state = { folder: '', book: null, sourceBook: null, collection: 'main', mode: 'read', readingDisplay: 'all', readingRevealed: false, batchSize: 1, batch: null, index: 0, result: null, progress: {}, sequence: 0, folderSequence: 0, loading: false, showingHint: false };
+const state = { folder: '', book: null, sourceBook: null, collection: 'main', mode: 'read', readingDisplay: 'all', readingRevealed: false, batchSize: 1, batch: null, index: 0, result: null, progress: {}, sequence: 0, folderSequence: 0, loading: false, showingHint: false, editing: false };
 const tagNames = { ky: '考研', cet4: 'CET-4', cet6: 'CET-6', gk: '高考', zk: '中考', ielts: 'IELTS', toefl: 'TOEFL', gre: 'GRE' };
 const formNames = { s: '复数', p: '过去式', d: '过去分词', i: '现在分词', '3': '第三人称单数', r: '比较级', t: '最高级', '0': '原形' };
 const folderName = name => name === 'Postgraduate-Entrance-Examination' ? '考研词汇' : name;
@@ -85,7 +86,7 @@ async function flushSaves() {
 }
 
 function save() {
-  if (!state.book) return;
+  if (!state.book || state.editing) return;
   const value = progress();
   value[state.mode] = state.index;
   if (state.mode === 'learn') {
@@ -113,7 +114,7 @@ function progress() {
 function showError(message) { $('app-error').textContent = message; $('app-error').hidden = !message; }
 
 async function api(url, payload) {
-  const response = await fetch(url, payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: url !== '/api/migrate' });
+  const response = await fetch(url, payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: !['/api/migrate', '/api/edit-book'].includes(url) });
   const result = await response.json();
   if (!response.ok) { const error = new Error(result.error || '请求失败，请重试。'); error.status = response.status; throw error; }
   return result;
@@ -154,7 +155,7 @@ async function browse(folder = '') {
       const name = document.createElement('span'); name.className = 'file-name'; name.textContent = entry.type === 'folder' ? folderName(entry.name) : entry.name.replace(/\.[^.]+$/, '');
       const count = document.createElement('span'); count.className = 'file-count'; count.textContent = entry.type === 'folder' ? '文件夹' : entry.error ? '无法读取' : `${entry.count} 词`;
       button.append(icon(entry.type), name, count);
-      button.onclick = () => entry.type === 'folder' ? browse(entry.path) : openBook(entry.path);
+      button.onclick = () => entry.type === 'folder' ? browse(entry.path) : state.editing ? wordbookEditor.select(entry.path) : openBook(entry.path);
       if (entry.error) button.disabled = true;
       $('files').append(button);
       if (entry.type === 'book' && !entry.error) {
@@ -176,19 +177,19 @@ async function browse(folder = '') {
 
 function highlightBook() {
   document.querySelectorAll('.file-row[data-path]').forEach(row => {
-    const selected = row.dataset.path === state.book?.path && state.collection === 'main';
+    const selected = state.editing ? row.dataset.path === state.editingPath : row.dataset.path === state.book?.path && state.collection === 'main';
     row.classList.toggle('selected', selected);
     if (selected) row.setAttribute('aria-current', 'true'); else row.removeAttribute('aria-current');
   });
   document.querySelectorAll('.file-row[data-easy-path]').forEach(row => {
-    const selected = row.dataset.easyPath === state.book?.path && state.collection === 'easy';
+    const selected = !state.editing && row.dataset.easyPath === state.book?.path && state.collection === 'easy';
     row.classList.toggle('selected', selected);
     if (selected) row.setAttribute('aria-current', 'true'); else row.removeAttribute('aria-current');
   });
 }
 
 async function openBook(path, collection = 'main', targetWord = '') {
-  if (state.loading) return false;
+  if (state.loading || state.editing) return false;
   save();
   const sequence = ++state.sequence;
   state.loading = true;
@@ -506,6 +507,7 @@ function beginBatchRound() {
 }
 
 function render() {
+  if (state.editing) return;
   state.showingHint = false;
   state.batch = null;
   $('batch-content').hidden = true;
@@ -755,6 +757,7 @@ function hideWordHint(focusInput = false) {
 }
 
 document.addEventListener('keydown', event => {
+  if (state.editing) return;
   if (event.key !== 'Tab' || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing) return;
   if (state.loading || state.mode !== 'learn' || !state.book || state.index >= state.book.words.length) return;
   if (!event.target.closest('.study-panel') || event.target.closest('.mode-switch, .collection-switch, .reading-options')) return;
@@ -787,6 +790,7 @@ window.addEventListener('blur', () => hideWordHint());
 document.addEventListener('visibilitychange', () => { if (document.hidden) hideWordHint(); });
 
 document.addEventListener('keydown', event => {
+  if (state.editing) return;
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
   if (event.target.closest('.global-search')) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing || event.keyCode === 229) return;
@@ -802,6 +806,7 @@ document.addEventListener('keydown', event => {
 }, true);
 
 document.addEventListener('keydown', event => {
+  if (state.editing) return;
   if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
   if (state.mode !== 'read' || state.loading || !state.book || state.index >= state.book.words.length) return;
   if (event.target.closest('.sidebar, .mode-switch, .collection-switch, .reading-options') || event.target.matches('input, textarea, select, a') || event.target.isContentEditable) return;
@@ -827,7 +832,22 @@ $('restart').onclick = restartStudy;
 $('save-status').onclick = () => saveConflict ? location.reload() : flushSaves();
 window.addEventListener('pagehide', () => { flushSaves(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushSaves(); });
-$('refresh').onclick = () => { showError(''); browse(state.folder); globalSearch.refresh(); };
+$('refresh').onclick = async () => {
+  const button = $('refresh');
+  button.disabled = true;
+  $('refresh-status').hidden = false;
+  $('refresh-status').textContent = '正在扫描全部词本…';
+  showError('');
+  try {
+    const summary = await api('/api/refresh', {});
+    await browse(state.folder);
+    await globalSearch.refresh();
+    $('refresh-status').textContent = `已同步 ${summary.books} 本词本 · ${summary.unique_words.toLocaleString()} 个词` + (summary.imported_books.length ? ` · 新导入 ${summary.imported_books.length} 本` : '') + (summary.errors.length ? ` · ${summary.errors.length} 本无法读取` : '');
+  } catch (error) {
+    $('refresh-status').textContent = '刷新失败，请重试';
+    showError('词本刷新失败：' + error.message);
+  } finally { button.disabled = false; }
+};
 $('answer').addEventListener('input', () => {
   if (!state.result) return;
   state.result = null;
@@ -841,6 +861,7 @@ $('answer').addEventListener('keydown', event => {
   else if (event.code === 'Space' && state.result?.checked) { event.preventDefault(); event.stopPropagation(); continueStudy(); }
 });
 document.addEventListener('keydown', event => {
+  if (state.editing) return;
   if (event.isComposing || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
   if (event.target.closest('.global-search')) return;
   if (isBatchMode()) {
@@ -872,11 +893,44 @@ if (!('speechSynthesis' in window)) $('speak').hidden = true;
 
 const globalSearch = setupGlobalSearch({
   api,
+  folderName,
   async openWord(path, collection, word) {
     if (await openBook(path, collection, word)) {
       await browse(path.split('/').slice(0, -1).join('/'));
       document.querySelector('.study-panel').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     }
+  },
+});
+
+let editedCurrentBook = false;
+const wordbookEditor = setupWordbookEditor({
+  api, folderName,
+  currentPath: () => state.sourceBook?.path,
+  async beforeOpen() {
+    if (state.loading) return false;
+    save();
+    if (!await flushSaves()) return false;
+    hideWordHint();
+    return true;
+  },
+  onVisibility(visible) {
+    state.editing = visible;
+    document.querySelector('.workspace').classList.toggle('editing-wordbook', visible);
+    highlightBook();
+  },
+  onSelected(path) { state.editingPath = path; highlightBook(); },
+  async onSaved(book) {
+    if (book.path === state.sourceBook?.path) {
+      acceptBook(await api('/api/book?path=' + encodeURIComponent(book.path)));
+      editedCurrentBook = true;
+    }
+    await browse(state.folder);
+    await globalSearch.refresh();
+  },
+  onClose() {
+    render();
+    if (editedCurrentBook) { save(); editedCurrentBook = false; }
+    document.querySelector('.study-panel').scrollIntoView({block:'start'});
   },
 });
 

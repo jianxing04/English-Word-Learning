@@ -193,13 +193,28 @@ def ensure_json_book(relative):
         return target
 
 
+def wordbook_paths():
+    paths = [path for path in BOOK_ROOT.rglob("*")
+             if path.is_file() and path.suffix.lower() in SUPPORTED
+             and not any(part.startswith(".") for part in path.relative_to(BOOK_ROOT).parts)
+             and path.resolve().is_relative_to(BOOK_ROOT.resolve())]
+    return sorted(paths, key=lambda path: tuple(natural_key(Path(part)) for part in path.relative_to(BOOK_ROOT).parts))
+
+
 def convert_wordbooks():
-    for path in sorted(BOOK_ROOT.rglob("*")):
-        if path.is_file() and path.suffix.lower() in SUPPORTED and not any(part.startswith(".") for part in path.relative_to(BOOK_ROOT).parts):
+    imported, errors = [], []
+    with BOOK_LOCK:
+        for path in wordbook_paths():
             try:
-                ensure_json_book(path.relative_to(BOOK_ROOT).as_posix())
+                before = path.stat()
+                target = ensure_json_book(path.relative_to(BOOK_ROOT).as_posix())
+                if target != path or target.stat().st_mtime_ns != before.st_mtime_ns:
+                    imported.append(target.relative_to(BOOK_ROOT).as_posix())
             except (UserError, OSError) as exc:
-                print(f"Cannot import {path.name}: {getattr(exc, 'message', str(exc))}", flush=True)
+                message = getattr(exc, 'message', str(exc))
+                errors.append({"path": path.relative_to(BOOK_ROOT).as_posix(), "error": message})
+                print(f"Cannot import {path.name}: {message}", flush=True)
+    return {"imported_books": imported, "errors": errors}
 
 
 def validate_progress(value, words):
@@ -281,6 +296,64 @@ def update_book(payload, classify=False):
         write_document(path, document)
         relative = path.relative_to(BOOK_ROOT).as_posix()
         return load_book(relative) if classify else {"path": relative, "revision": document["revision"], "etag": file_token(path)}
+
+
+def vocabulary(document):
+    actual = {word_key(word): word for word in document["words"] + document["easy_words"]}
+    saved = document.get("word_order", [])
+    order = word_list(saved if isinstance(saved, list) else [])
+    return [actual[word_key(word)] for word in word_list(order + list(actual.values())) if word_key(word) in actual]
+
+
+def editable_book(relative):
+    with BOOK_LOCK:
+        path = ensure_json_book(relative)
+        document = read_document(path)
+        return {"path": path.relative_to(BOOK_ROOT).as_posix(), "name": path.stem, "words": vocabulary(document),
+                "revision": document["revision"], "etag": file_token(path)}
+
+
+def editable_books():
+    books, errors = [], []
+    with BOOK_LOCK:
+        for path in wordbook_paths():
+            relative = path.relative_to(BOOK_ROOT).as_posix()
+            try:
+                read_words(path)
+                books.append({"path": relative, "name": path.stem})
+            except (UserError, OSError) as exc:
+                errors.append({"path": relative, "error": getattr(exc, "message", "词本无法读取。")})
+    return {"books": books, "errors": errors}
+
+
+def edit_book(payload):
+    with BOOK_LOCK:
+        path = ensure_json_book(payload.get("path", ""))
+        document = read_document(path)
+        check_revision(document, payload.get("revision"), path, payload.get("etag"))
+        raw = payload.get("words")
+        if not isinstance(raw, list) or len(raw) > 100000 or any(not isinstance(word, str) or len(word) > 500 or "\n" in word or "\r" in word for word in raw):
+            raise UserError("词汇列表格式有误：每行一个词，每词最多 500 个字符。")
+        words = word_list(raw)
+        if words == vocabulary(document):
+            return editable_book(path.relative_to(BOOK_ROOT).as_posix())
+        easy = {word_key(word) for word in document["easy_words"]}
+        kept = {word_key(word) for word in words}
+        document["words"] = [word for word in words if word_key(word) not in easy]
+        document["easy_words"] = [word for word in words if word_key(word) in easy]
+        document["word_order"] = words
+        if "word_details" in document:
+            document["word_details"] = {word: detail for word, detail in document["word_details"].items() if word_key(word) in kept}
+        # Saved orders keep identities so the existing progress alignment can
+        # remap cursors and checked answers without crediting a neighboring word.
+        document["revision"] += 1
+        backup_folder = BOOK_ROOT.parent / ".runtime" / "wordbook-edits" / path.relative_to(BOOK_ROOT).parent
+        backup_folder.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=backup_folder, prefix=path.stem + "-", suffix=".json", delete=False) as backup:
+            backup.write(path.read_bytes())
+        write_document(path, document)
+        search_index.cache_clear()
+        return editable_book(path.relative_to(BOOK_ROOT).as_posix())
 
 
 def migrate_legacy(payload):
@@ -386,11 +459,7 @@ def search_wordbooks(query="", offset=0, limit=30):
         raise UserError("搜索分页参数无效。")
     needle = word_key(query)
     with BOOK_LOCK:
-        paths = [path for path in BOOK_ROOT.rglob("*")
-                 if path.is_file() and path.suffix.lower() in SUPPORTED
-                 and not any(part.startswith(".") for part in path.relative_to(BOOK_ROOT).parts)
-                 and path.resolve().is_relative_to(BOOK_ROOT.resolve())]
-        paths.sort(key=lambda path: tuple(natural_key(Path(part)) for part in path.relative_to(BOOK_ROOT).parts))
+        paths = wordbook_paths()
         signature = tuple((path.relative_to(BOOK_ROOT).as_posix(), path.stat().st_mtime_ns, path.stat().st_size) for path in paths)
         index = search_index(BOOK_ROOT, signature)
     matches = [entry for entry in index["entries"] if needle in entry["key"]]
@@ -407,6 +476,17 @@ def search_wordbooks(query="", offset=0, limit=30):
                         "found": dictionary.get("found", False)})
     return {"query": needle, "results": results, "total": len(matches), "offset": offset, "limit": limit,
             "unique_words": len(index["entries"]), "occurrences": index["occurrences"], "books": index["books"], "errors": index["errors"]}
+
+
+def refresh_wordbooks():
+    """Finish recursive imports before rebuilding search sources and statistics."""
+    with BOOK_LOCK:
+        converted = convert_wordbooks()
+        search_index.cache_clear()
+        summary = search_wordbooks(limit=1)
+        errors = {item["path"]: item for item in converted["errors"] + summary["errors"]}
+        return {"books": summary["books"], "unique_words": summary["unique_words"], "occurrences": summary["occurrences"],
+                "imported_books": converted["imported_books"], "errors": list(errors.values())}
 
 
 @lru_cache(maxsize=8192)
@@ -456,7 +536,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             endpoint = urlsplit(self.path).path
-            if endpoint not in ("/api/progress", "/api/classify", "/api/migrate"):
+            if endpoint not in ("/api/progress", "/api/classify", "/api/migrate", "/api/refresh", "/api/edit-book"):
                 raise UserError("接口不存在。", 404)
             origin = self.headers.get("Origin")
             if origin and origin != "http://" + self.headers.get("Host", ""):
@@ -470,9 +550,16 @@ class Handler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length))
             except (ValueError, UnicodeDecodeError) as exc:
                 raise UserError("提交的 JSON 格式有误。") from exc
-            if not isinstance(payload, dict) or (endpoint != "/api/migrate" and not isinstance(payload.get("path"), str)):
+            if not isinstance(payload, dict) or (endpoint not in ("/api/migrate", "/api/refresh") and not isinstance(payload.get("path"), str)):
                 raise UserError("保存内容格式有误。")
-            result = migrate_legacy(payload) if endpoint == "/api/migrate" else update_book(payload, classify=endpoint == "/api/classify")
+            if endpoint == "/api/refresh":
+                result = refresh_wordbooks()
+            elif endpoint == "/api/edit-book":
+                result = edit_book(payload)
+            elif endpoint == "/api/migrate":
+                result = migrate_legacy(payload)
+            else:
+                result = update_book(payload, classify=endpoint == "/api/classify")
             self.send_json(result)
         except UserError as exc:
             self.send_json({"error": exc.message}, exc.status)
@@ -490,6 +577,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(browse(query.get("path", [""])[0]))
             if parsed.path == "/api/book":
                 return self.send_json(load_book(query.get("path", [""])[0]))
+            if parsed.path == "/api/edit-books":
+                return self.send_json(editable_books())
+            if parsed.path == "/api/book-words":
+                return self.send_json(editable_book(query.get("path", [""])[0]))
             if parsed.path == "/api/search":
                 try:
                     offset, limit = int(query.get("offset", ["0"])[0]), int(query.get("limit", ["30"])[0])

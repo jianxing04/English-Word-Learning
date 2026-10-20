@@ -14,7 +14,9 @@
   </header>
   <div class="workspace">
     <aside class="sidebar" aria-label="单词本浏览器">
-      <div class="sidebar-heading"><h2>我的单词本</h2><button id="refresh" class="icon-button" title="刷新文件夹" aria-label="刷新文件夹"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10m16 4-3 3A7 7 0 0 1 5 12"/></svg></button></div>
+      <div class="sidebar-heading"><h2>我的单词本</h2><button id="refresh" class="icon-button" title="刷新全部词本和搜索" aria-label="刷新全部词本和搜索"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10m16 4-3 3A7 7 0 0 1 5 12"/></svg></button></div>
+      <p id="refresh-status" class="refresh-status" role="status" hidden></p>
+      <button id="edit-wordbook" class="edit-wordbook-button" type="button">修改单词本</button>
       <nav id="folder-crumbs" class="folder-crumbs" aria-label="文件夹路径"></nav>
       <div id="files" class="files" aria-live="polite"><p class="muted">正在读取单词本…</p></div>
       <div class="sidebar-bottom"><span class="small-label">添加单词本</span><p>把词表放入 <code>words</code> 文件夹<br>再点击刷新，即可开始学习。</p><span class="file-types">TXT / CSV / TSV / JSON</span></div>
@@ -28,6 +30,16 @@
         <div id="search-output" hidden><ol id="search-results" class="search-results" aria-label="全局单词搜索结果"></ol><div id="search-pagination" class="search-pagination"><button id="search-previous" type="button">上一页</button><span id="search-page"></span><button id="search-next" type="button">下一页</button></div><button id="search-collapse" class="search-collapse" type="button">收起结果</button></div>
       </section>
       <div id="app-error" class="app-error" role="alert" hidden></div>
+      <section id="wordbook-editor" class="wordbook-editor" aria-labelledby="editor-heading" hidden>
+        <div class="editor-heading"><h2 id="editor-heading">修改单词本</h2><span id="editor-count"></span></div>
+        <label for="editor-book">选择单词本</label><select id="editor-book"></select>
+        <label for="editor-words">原始词汇列表</label>
+        <p class="editor-help">每行一个词，可修改、添加、删除或调整顺序。保存时忽略空行并去重。</p>
+        <textarea id="editor-words" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="editor-help editor-status" placeholder="每行输入一个英文单词…"></textarea>
+        <p id="editor-help" class="editor-help">未改动的词保留原有记录。新增或改了拼写的词加入原词本。</p>
+        <p id="editor-status" class="editor-status" role="status"></p>
+        <div class="editor-actions"><button id="editor-save" class="primary-button" type="button">保存修改</button><button id="editor-cancel" class="text-button" type="button">返回学习</button><button id="editor-reload" class="text-button" type="button" hidden>放弃修改并重新加载</button></div>
+      </section>
       <section class="study-panel" aria-label="单词学习区">
         <div class="study-toolbar"><div class="book-heading"><span class="book-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5a2 2 0 0 1 0-4h14M5 4v12M9 8h6"/></svg></span><div><h2 id="book-name">选择一本单词本</h2><span id="book-path" class="muted">从左侧打开文件夹和词表</span></div></div><div class="mode-switch" aria-label="学习模式"><button id="read-mode" aria-pressed="true">阅读模式</button><button id="learn-mode" aria-pressed="false">拼写学习</button></div></div>
         <div id="collection-toolbar" class="collection-toolbar" hidden><div class="collection-switch" aria-label="词本分类"><button id="main-collection" aria-pressed="true">原词本</button><button id="easy-collection" aria-pressed="false">简单词本</button></div><label id="reading-options" class="reading-options" hidden>阅读显示<select id="reading-display"><option value="all">全部显示</option><option value="hide-meaning">隐藏释义</option><option value="hide-word">隐藏单词</option></select></label><label id="batch-options" class="reading-options" hidden>每次背诵<select id="batch-size"><option value="1">单个单词</option><option value="5">5 个单词</option><option value="10">10 个单词</option></select></label><span id="collection-notice" role="status"></span></div>
