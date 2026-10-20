@@ -8,13 +8,16 @@ import io
 import json
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import tempfile
 import threading
+import time
 import unicodedata
 import webbrowser
 from contextlib import closing
+from collections import OrderedDict
 from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -22,6 +25,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import wordnet_dictionary
+import article_nlp
+import article_storage
 
 BASE = Path(__file__).resolve().parent
 BOOK_ROOT = BASE / "words"
@@ -30,6 +35,7 @@ WORDNET_PATH = Path(os.environ.get("WORDROOM_WORDNET", str(wordnet_dictionary.DE
 STATIC = BASE / "static"
 SUPPORTED = {".txt", ".csv", ".tsv", ".json"}
 BOOK_LOCK = threading.RLock()
+ARTICLE_PREVIEWS = OrderedDict()
 
 
 class UserError(Exception):
@@ -129,6 +135,63 @@ def write_document(path, document):
             temporary.unlink()
 
 
+def new_item_name(value):
+    if not isinstance(value, str) or not value or len(value) > 120:
+        raise UserError("名称不能为空，且不能超过 120 个字符。")
+    if value != value.strip() or value.startswith(".") or value.endswith(".") or any(ord(char) < 32 or char in '<>:"/\\|?*' for char in value):
+        raise UserError('名称不能以空格或点开头、结尾，也不能包含 <>:"/\\|?* 等字符。')
+    device = unicodedata.normalize("NFKC", value.split(".", 1)[0]).upper()
+    reserved = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"} | {f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(1, 10)}
+    if device in reserved:
+        raise UserError("这个名称是系统保留名称，请换一个名称。")
+    return value
+
+
+def create_wordbook_item(payload):
+    kind, parent_name = payload.get("kind"), payload.get("parent", "")
+    if kind not in ("folder", "book") or not isinstance(parent_name, str):
+        raise UserError("请选择要创建的文件夹或单词本。")
+    name = new_item_name(payload.get("name"))
+    if kind == "book":
+        if Path(name).suffix.lower() in SUPPORTED:
+            name = new_item_name(Path(name).stem)
+        name += ".json"
+    with BOOK_LOCK:
+        parent = resolve_book(parent_name)
+        if not parent.is_dir():
+            raise UserError("请选择一个文件夹作为创建位置。")
+        target = parent / name
+        for existing in parent.iterdir():
+            same_file = existing.name.casefold() == name.casefold()
+            same_book = kind == "book" and existing.is_file() and existing.suffix.lower() in SUPPORTED and existing.stem.casefold() == target.stem.casefold()
+            if same_file or same_book:
+                raise UserError("当前位置已有同名文件夹或词本，请换一个名称。", 409)
+        created = False
+        try:
+            if kind == "folder":
+                target.mkdir()
+            else:
+                document = {"version": 2, "words": [], "easy_words": [], "word_order": [], "progress": {}, "settings": {"batch_size": 1}, "revision": 0}
+                # Exclusive creation also refuses collisions with external file operations.
+                with target.open("x", encoding="utf-8", newline="\n") as stream:
+                    created = True
+                    json.dump(document, stream, ensure_ascii=False, indent=2)
+                    stream.write("\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+        except FileExistsError as exc:
+            raise UserError("当前位置已有同名文件夹或词本，请换一个名称。", 409) from exc
+        except OSError as exc:
+            if created:
+                target.unlink(missing_ok=True)
+            raise UserError("创建失败，请检查当前文件夹是否可写。") from exc
+        if kind == "book":
+            search_index.cache_clear()
+        return {"type": kind, "name": target.stem if kind == "book" else target.name,
+                "path": target.relative_to(BOOK_ROOT.resolve()).as_posix(),
+                "parent": "" if parent == BOOK_ROOT.resolve() else parent.relative_to(BOOK_ROOT.resolve()).as_posix()}
+
+
 def read_document(path):
     try:
         document = json.loads(read_text(path))
@@ -138,6 +201,10 @@ def read_document(path):
         raise UserError("请先将旧词表转换为包含 words 和 easy_words 的 JSON。")
     if "word_details" in document:
         validate_word_details(document["word_details"])
+    if "articles" in document:
+        articles = document["articles"]
+        if not isinstance(articles, dict) or any(not isinstance(article, dict) or not isinstance(article.get('title'), str) or not isinstance(article.get('text'), str) for article in articles.values()):
+            raise UserError("articles 必须按文章编号保存标题和原文。")
     easy = word_list(document.get("easy_words"))
     easy_keys = {word_key(word) for word in easy}
     main_words = [word for word in word_list(document.get("words")) if word_key(word) not in easy_keys]
@@ -158,6 +225,10 @@ def validate_word_details(details):
         for context in detail.get("contexts", []):
             if not isinstance(context, dict) or any(not isinstance(context.get(field), str) or not context[field].strip() for field in ("pos", "meaning", "english", "chinese")):
                 raise UserError(f"{word} 的每个搭配须包含 pos、meaning、english、chinese 四项文字。")
+        try:
+            article_storage.validate_sentences(detail.get('article_sentences', []))
+        except ValueError as exc:
+            raise UserError(f'{word}：{exc}') from exc
 
 
 def ensure_json_book(relative):
@@ -356,6 +427,65 @@ def edit_book(payload):
         return editable_book(path.relative_to(BOOK_ROOT).as_posix())
 
 
+def preview_article(payload):
+    text, title = payload.get('text'), payload.get('title', '')
+    if not isinstance(text, str) or not text.strip() or len(text) > article_nlp.MAX_CHARACTERS:
+        raise UserError('请粘贴非空英文文章，每次不超过 60,000 个字符。')
+    if not isinstance(title, str) or len(title) > 200:
+        raise UserError('文章标题不能超过 200 个字符。')
+    with BOOK_LOCK:
+        path = ensure_json_book(payload['path'])
+        document = read_document(path)
+        check_revision(document, payload.get('revision'), path, payload.get('etag'))
+        token = file_token(path)
+    try:
+        analysis = article_nlp.analyze(text, DICT_PATH)
+    except article_nlp.ArticleError as exc:
+        raise UserError(str(exc), exc.status) from exc
+    with BOOK_LOCK:
+        latest = read_document(path)
+        check_revision(latest, document['revision'], path, token)
+        _merged, summary = article_storage.merge(latest, analysis, text, title)
+        existing = {word_key(word) for word in document['words'] + document['easy_words']}
+        preview_id = secrets.token_urlsafe(24)
+        ARTICLE_PREVIEWS[preview_id] = {'path': path.relative_to(BOOK_ROOT).as_posix(), 'revision': document['revision'],
+                                       'etag': token, 'text': text, 'title': title, 'analysis': analysis, 'time': time.monotonic()}
+        while len(ARTICLE_PREVIEWS) > 12:
+            ARTICLE_PREVIEWS.popitem(last=False)
+        return {'preview_id': preview_id, 'summary': summary, 'engine': analysis['engine'],
+                'words': [{'word': group['word'], 'forms': group['forms'], 'pos': group['pos'],
+                           'sentence_count': len({item['sentence'] for item in group['occurrences']}),
+                           'existing': word_key(group['word']) in existing} for group in analysis['words']]}
+
+
+def import_article(payload):
+    with BOOK_LOCK:
+        preview_id = payload.get('preview_id')
+        preview = ARTICLE_PREVIEWS.get(preview_id) if isinstance(preview_id, str) else None
+        if not preview or time.monotonic() - preview['time'] > 1800:
+            raise UserError('文章预览已过期，请重新解析。', 409)
+        path = ensure_json_book(payload['path'])
+        if path.relative_to(BOOK_ROOT).as_posix() != preview['path']:
+            raise UserError('文章预览不属于这个词本，请重新解析。', 409)
+        document = read_document(path)
+        check_revision(document, preview['revision'], path, preview['etag'])
+        check_revision(document, payload.get('revision'), path, payload.get('etag'))
+        try:
+            merged, summary = article_storage.merge(document, preview['analysis'], preview['text'], preview['title'], payload.get('selection'))
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+        if merged != document:
+            merged['revision'] = document['revision'] + 1
+            backup_folder = BOOK_ROOT.parent / '.runtime' / 'wordbook-edits' / path.relative_to(BOOK_ROOT).parent
+            backup_folder.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=backup_folder, prefix=path.stem + '-article-', suffix='.json', delete=False) as backup:
+                backup.write(path.read_bytes())
+            write_document(path, merged)
+            search_index.cache_clear()
+        ARTICLE_PREVIEWS.pop(payload['preview_id'], None)
+        return {**editable_book(preview['path']), 'summary': summary}
+
+
 def migrate_legacy(payload):
     easy_map, progress_map = payload.get("easy_words", {}), payload.get("progress", {})
     if not isinstance(easy_map, dict) or not isinstance(progress_map, dict):
@@ -516,7 +646,8 @@ def load_book(relative):
         detail = details.get(word_key(word), {})
         entries.append(lookup(word) | {"word": word, "wordnet": wordnet_dictionary.lookup(word, WORDNET_PATH),
                                       "contexts": detail.get("contexts", []), "context_note": detail.get("note", ""),
-                                      "context_headword": detail.get("display_word") or word})
+                                      "context_headword": detail.get("display_word") or word,
+                                      "article_sentences": [{**record, 'titles': list(dict.fromkeys(document.get('articles', {}).get(source['article_id'], {}).get('title', '文章') for source in record.get('sources', [])))} for record in detail.get('article_sentences', [])]})
     fingerprint = hashlib.sha256("\n".join(sorted(words, key=word_key)).encode()).hexdigest()[:16]
     return {"path": path.relative_to(BOOK_ROOT).as_posix(), "name": path.stem, "fingerprint": fingerprint,
             "words": entries, "easy_words": document["easy_words"],
@@ -536,7 +667,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             endpoint = urlsplit(self.path).path
-            if endpoint not in ("/api/progress", "/api/classify", "/api/migrate", "/api/refresh", "/api/edit-book"):
+            if endpoint not in ("/api/progress", "/api/classify", "/api/migrate", "/api/refresh", "/api/edit-book", "/api/create", "/api/article-preview", "/api/article-import"):
                 raise UserError("接口不存在。", 404)
             origin = self.headers.get("Origin")
             if origin and origin != "http://" + self.headers.get("Host", ""):
@@ -550,10 +681,16 @@ class Handler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length))
             except (ValueError, UnicodeDecodeError) as exc:
                 raise UserError("提交的 JSON 格式有误。") from exc
-            if not isinstance(payload, dict) or (endpoint not in ("/api/migrate", "/api/refresh") and not isinstance(payload.get("path"), str)):
+            if not isinstance(payload, dict) or (endpoint not in ("/api/migrate", "/api/refresh", "/api/create") and not isinstance(payload.get("path"), str)):
                 raise UserError("保存内容格式有误。")
             if endpoint == "/api/refresh":
                 result = refresh_wordbooks()
+            elif endpoint == '/api/article-preview':
+                result = preview_article(payload)
+            elif endpoint == '/api/article-import':
+                result = import_article(payload)
+            elif endpoint == "/api/create":
+                result = create_wordbook_item(payload)
             elif endpoint == "/api/edit-book":
                 result = edit_book(payload)
             elif endpoint == "/api/migrate":
@@ -589,6 +726,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(search_wordbooks(query.get("q", [""])[0], offset, limit))
             if parsed.path == "/api/status":
                 return self.send_json({"dictionary": DICT_PATH.is_file(), "book_root": str(BOOK_ROOT), "dictionary_name": "ECDICT 英汉词典", "wordnet": WORDNET_PATH.is_file()})
+            if parsed.path == '/api/article-status':
+                return self.send_json(article_nlp.status())
             if parsed.path.startswith("/api/"):
                 raise UserError("接口不存在。", 404)
             resource = "index.html" if parsed.path == "/" else unquote(parsed.path).lstrip("/")

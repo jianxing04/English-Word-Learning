@@ -10,6 +10,9 @@
 /data/
 /dictionaries/
 
+# Downloaded Python package and model installers.
+*.whl
+
 # Runtime logs, browser QA profiles, screenshots, and local backups.
 .runtime/
 *.log

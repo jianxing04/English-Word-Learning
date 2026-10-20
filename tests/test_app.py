@@ -422,6 +422,169 @@ class AppTests(unittest.TestCase):
         self.assertEqual(app.load_book('WL1.json')['words'], [])
         self.assertEqual(app.search_wordbooks('minor')['total'], 0)
 
+    def test_create_folders_and_books_at_root_and_nested_locations(self):
+        folder = app.create_wordbook_item({'kind': 'folder', 'parent': '', 'name': '我的词汇'})
+        self.assertEqual(folder, {'type': 'folder', 'name': '我的词汇', 'path': '我的词汇', 'parent': ''})
+        nested = app.create_wordbook_item({'kind': 'folder', 'parent': folder['path'], 'name': '雅思'})
+        self.assertEqual(nested['path'], '我的词汇/雅思')
+        with patch.object(app, 'DICT_PATH', self.root / 'missing.db'):
+            book = app.create_wordbook_item({'kind': 'book', 'parent': nested['path'], 'name': 'WL01'})
+            initial = app.editable_book(book['path'])
+        self.assertEqual(book['path'], '我的词汇/雅思/WL01.json')
+        self.assertEqual(initial['words'], [])
+        self.assertEqual(initial['revision'], 0)
+        document = app.read_document(self.books / book['path'])
+        self.assertEqual(document['easy_words'], [])
+        self.assertEqual(document['progress'], {})
+        self.assertEqual(app.search_wordbooks()['books'], 1)
+        app.edit_book({**initial, 'words': ['minor', 'inference']})
+        self.assertEqual(app.search_wordbooks('minor')['results'][0]['sources'][0]['path'], book['path'])
+        self.assertEqual(app.browse(nested['path'])['entries'][0]['count'], 2)
+        root_book = app.create_wordbook_item({'kind': 'book', 'parent': '', 'name': '根词本.JSON'})
+        self.assertEqual((root_book['path'], root_book['parent']), ('根词本.json', ''))
+        text_book = app.create_wordbook_item({'kind': 'book', 'name': '词本.txt'})
+        self.assertEqual(text_book['path'], '词本.json')
+
+    def test_creation_refuses_collisions_without_changing_existing_files(self):
+        self.make_book()
+        original = (self.books / 'WL1.json').read_bytes()
+        (self.books / 'existing.txt').write_text('minor\n', encoding='utf-8')
+        (self.books / 'folder').mkdir()
+        for payload in [
+            {'kind': 'book', 'name': 'wl1'}, {'kind': 'book', 'name': 'WL1.json'},
+            {'kind': 'book', 'name': 'EXISTING'}, {'kind': 'folder', 'name': 'FOLDER'},
+            {'kind': 'folder', 'name': 'WL1.json'},
+        ]:
+            with self.assertRaises(app.UserError) as caught:
+                app.create_wordbook_item(payload)
+            self.assertEqual(caught.exception.status, 409)
+        self.assertEqual((self.books / 'WL1.json').read_bytes(), original)
+        self.assertEqual((self.books / 'existing.txt').read_text(encoding='utf-8'), 'minor\n')
+        self.assertFalse((self.books / 'existing.json').exists())
+
+    def test_creation_rejects_invalid_names_and_locations(self):
+        before = list(self.books.iterdir())
+        for name in ['', None, 'x' * 121, '../outside', 'a/b', 'a\\b', '.hidden', '.', '..', ' trailing', 'trailing ', 'trailing.',
+                     'a:b', 'a?b', 'a*b', 'a|b', 'a<b', 'a>b', 'a"b', 'line\nbreak', 'CON', 'nul.txt', 'LPT1', 'COM1.json']:
+            for kind in ('book', 'folder'):
+                with self.assertRaises(app.UserError):
+                    app.create_wordbook_item({'kind': kind, 'name': name})
+        self.assertEqual(list(self.books.iterdir()), before)
+        outside = self.root / 'outside'
+        outside.mkdir()
+        with self.assertRaises(app.UserError) as caught:
+            app.create_wordbook_item({'kind': 'book', 'parent': '../outside', 'name': 'test'})
+        self.assertEqual(caught.exception.status, 403)
+        self.assertEqual(list(outside.iterdir()), [])
+        for payload in [{'kind': 'unknown', 'name': 'test'}, {'kind': 'book', 'parent': 1, 'name': 'test'}, {'kind': 'folder', 'parent': 'missing', 'name': 'test'}]:
+            with self.assertRaises(app.UserError):
+                app.create_wordbook_item(payload)
+
+    def test_concurrent_creation_never_overwrites_a_book(self):
+        from concurrent.futures import ThreadPoolExecutor
+        def create():
+            try:
+                return app.create_wordbook_item({'kind': 'book', 'name': 'same'})['path']
+            except app.UserError as exc:
+                return exc.status
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            results = list(executor.map(lambda _: create(), range(4)))
+        self.assertEqual(results.count('same.json'), 1)
+        self.assertEqual(results.count(409), 3)
+        self.assertEqual(app.read_document(self.books / 'same.json')['words'], [])
+
+    @staticmethod
+    def article_sample():
+        return {'sentences': ['Dogs ran.', 'A dog runs.'], 'engine': {'name': 'test-context-annotations', 'model_version': 'test'}, 'words': [
+            {'word': 'dog', 'forms': ['Dogs', 'dog'], 'pos': ['NOUN'], 'occurrences': [{'sentence': 0, 'start': 0, 'end': 4}, {'sentence': 1, 'start': 2, 'end': 5}]},
+            {'word': 'run', 'forms': ['ran', 'runs'], 'pos': ['VERB'], 'occurrences': [{'sentence': 0, 'start': 5, 'end': 8}, {'sentence': 1, 'start': 6, 'end': 10}]},
+        ]}
+
+    def test_article_preview_does_not_write_and_import_preserves_existing_records(self):
+        file = self.books / 'WL1.json'
+        context = {'contexts': [{'pos': 'adj.', 'meaning': '小的', 'english': 'a minor issue', 'chinese': '小问题'}]}
+        document = {'version': 2, 'words': ['minor', 'run'], 'easy_words': ['dog'], 'word_details': {'minor': context},
+                    'progress': {'main': {'order': ['minor', 'run'], 'read_order': ['minor', 'run'], 'read': 1, 'learn': 1, 'correct': [0], 'attempted': [0]}},
+                    'settings': {'batch_size': 5}, 'revision': 0}
+        app.write_document(file, document)
+        snapshot = app.editable_book('WL1.json')
+        before = file.read_bytes()
+        with patch.object(app.article_nlp, 'analyze', return_value=self.article_sample()):
+            preview = app.preview_article({**snapshot, 'text': 'Dogs ran. A dog runs.', 'title': 'Pets'})
+        self.assertEqual(file.read_bytes(), before)
+        self.assertTrue(all(word['existing'] for word in preview['words']))
+        imported = app.import_article({**snapshot, 'preview_id': preview['preview_id']})
+        self.assertEqual(imported['summary']['new_words'], 0)
+        self.assertEqual(imported['summary']['new_sentences'], 4)
+        saved = app.read_document(file)
+        for field in ('words', 'easy_words', 'progress', 'settings'):
+            self.assertEqual(saved[field], document[field])
+        self.assertEqual(saved['word_details']['minor'], context)
+        self.assertEqual([record['text'] for record in saved['word_details']['run']['article_sentences']], ['Dogs ran.', 'A dog runs.'])
+        run = next(word for word in app.load_book('WL1.json')['words'] if word['word'] == 'run')
+        self.assertEqual(run['article_sentences'][0]['titles'], ['Pets'])
+        self.assertEqual(run['article_sentences'][0]['spans'], [[5, 8]])
+        same = file.read_bytes()
+        snapshot = app.editable_book('WL1.json')
+        with patch.object(app.article_nlp, 'analyze', return_value=self.article_sample()):
+            preview = app.preview_article({**snapshot, 'text': 'Dogs ran. A dog runs.', 'title': 'Pets'})
+        result = app.import_article({**snapshot, 'preview_id': preview['preview_id']})
+        self.assertEqual(result['summary']['new_sentences'], 0)
+        self.assertEqual(file.read_bytes(), same)
+        self.assertEqual(len(list((self.root / '.runtime/wordbook-edits').glob('WL1-article-*.json'))), 1)
+
+    def test_article_selection_can_correct_and_merge_lemmas_without_duplicate_sentences(self):
+        self.make_book()
+        snapshot = app.editable_book('WL1.json')
+        with patch.object(app.article_nlp, 'analyze', return_value=self.article_sample()):
+            preview = app.preview_article({**snapshot, 'text': 'Dogs ran. A dog runs.'})
+        result = app.import_article({**snapshot, 'preview_id': preview['preview_id'], 'selection': [{'lemma': 'dog', 'word': 'jog'}, {'lemma': 'run', 'word': 'JOG'}]})
+        saved = app.read_document(self.books / 'WL1.json')
+        self.assertEqual(result['summary']['new_words'], 1)
+        self.assertEqual(saved['words'].count('jog'), 1)
+        self.assertNotIn('dog', saved['words'])
+        self.assertNotIn('run', saved['words'])
+        self.assertEqual(len(saved['word_details']['jog']['article_sentences']), 2)
+        self.assertEqual(saved['word_details']['jog']['article_sentences'][0]['spans'], [[0, 4], [5, 8]])
+        self.assertEqual(app.search_wordbooks('jog')['total'], 1)
+
+    def test_article_preview_and_commit_detect_other_writes_and_preserve_files(self):
+        self.make_book()
+        snapshot = app.editable_book('WL1.json')
+        with patch.object(app.article_nlp, 'analyze', return_value=self.article_sample()):
+            preview = app.preview_article({**snapshot, 'text': 'Dogs ran. A dog runs.'})
+        app.update_book({'path': 'WL1.json', 'word': 'minor', 'collection': 'easy', 'revision': snapshot['revision']}, classify=True)
+        file = self.books / 'WL1.json'
+        before = file.read_bytes()
+        with self.assertRaises(app.UserError) as caught:
+            app.import_article({**snapshot, 'preview_id': preview['preview_id']})
+        self.assertEqual(caught.exception.status, 409)
+        self.assertEqual(file.read_bytes(), before)
+        snapshot = app.editable_book('WL1.json')
+        def concurrent_edit(*args):
+            app.update_book({'path': 'WL1.json', 'word': 'faithful', 'collection': 'easy', 'revision': snapshot['revision']}, classify=True)
+            return self.article_sample()
+        with patch.object(app.article_nlp, 'analyze', side_effect=concurrent_edit), self.assertRaises(app.UserError) as caught:
+            app.preview_article({**snapshot, 'text': 'Dogs ran. A dog runs.'})
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_article_input_and_saved_highlight_validation(self):
+        self.make_book()
+        snapshot = app.editable_book('WL1.json')
+        for extra in [{'text': ''}, {'text': 1}, {'text': 'x' * 60001}, {'text': 'test', 'title': 1}]:
+            with self.assertRaises(app.UserError):
+                app.preview_article({**snapshot, **extra})
+        with self.assertRaises(app.UserError):
+            app.import_article({**snapshot, 'preview_id': 'unknown'})
+        file = self.books / 'WL1.json'
+        document = app.read_document(file)
+        document['word_details'] = {'minor': {'article_sentences': [{'text': '🔎 minor', 'spans': [[2, 200]], 'sources': []}]}}
+        app.write_document(file, document)
+        before = file.read_bytes()
+        with self.assertRaises(app.UserError):
+            app.load_book('WL1.json')
+        self.assertEqual(file.read_bytes(), before)
+
 
 if __name__ == '__main__':
     unittest.main()

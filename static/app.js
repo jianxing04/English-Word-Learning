@@ -3,12 +3,16 @@ import { splitWordbook, alignProgress, shuffleUnread } from './wordbook-state.mj
 import { buildBatch, batchDraft, nextBatchOffset, batchCanAdvance, resetBatchRound, clearBatchInputs, shuffleBatchRows } from './batch-state.mjs';
 import { setupGlobalSearch } from './global-search.mjs';
 import { setupWordbookEditor } from './wordbook-editor.mjs';
+import { setupWordbookCreation } from './wordbook-creation.mjs';
+import { sentenceParts } from './article-text.mjs';
 
 const $ = id => document.getElementById(id);
 const state = { folder: '', book: null, sourceBook: null, collection: 'main', mode: 'read', readingDisplay: 'all', readingRevealed: false, batchSize: 1, batch: null, index: 0, result: null, progress: {}, sequence: 0, folderSequence: 0, loading: false, showingHint: false, editing: false };
 const tagNames = { ky: '考研', cet4: 'CET-4', cet6: 'CET-6', gk: '高考', zk: '中考', ielts: 'IELTS', toefl: 'TOEFL', gre: 'GRE' };
 const formNames = { s: '复数', p: '过去式', d: '过去分词', i: '现在分词', '3': '第三人称单数', r: '比较级', t: '最高级', '0': '原形' };
 const folderName = name => name === 'Postgraduate-Entrance-Examination' ? '考研词汇' : name;
+let showArticleSentences = true;
+try { showArticleSentences = localStorage.getItem('wordroom.showArticleSentences') !== 'false'; } catch { /* Default to showing source sentences. */ }
 const storageKey = 'wordroom.progress.v1';
 const easyStorageKey = 'wordroom.easyWords.v1';
 let legacyProgress = {}, legacyEasyWords = {};
@@ -114,7 +118,7 @@ function progress() {
 function showError(message) { $('app-error').textContent = message; $('app-error').hidden = !message; }
 
 async function api(url, payload) {
-  const response = await fetch(url, payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: !['/api/migrate', '/api/edit-book'].includes(url) });
+  const response = await fetch(url, payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: !['/api/migrate', '/api/edit-book', '/api/article-preview', '/api/article-import'].includes(url) });
   const result = await response.json();
   if (!response.ok) { const error = new Error(result.error || '请求失败，请重试。'); error.status = response.status; throw error; }
   return result;
@@ -134,6 +138,7 @@ async function browse(folder = '') {
     const data = await api('/api/browse?path=' + encodeURIComponent(folder));
     if (sequence !== state.folderSequence) return;
     state.folder = data.path;
+    wordbookCreation.location();
     $('folder-crumbs').replaceChildren();
     const root = document.createElement('button'); root.textContent = '单词本'; root.onclick = () => browse(''); $('folder-crumbs').append(root);
     let accumulated = '';
@@ -261,6 +266,26 @@ function renderContexts(word) {
   }
 }
 
+function renderArticleSentences(word) {
+  const records = word.article_sentences || [];
+  $('sentence-options').hidden = state.mode !== 'read' || !records.length;
+  $('show-article-sentences').checked = showArticleSentences;
+  $('sentence-list').replaceChildren();
+  $('sentence-count').textContent = `${records.length} 句 · 可向下滚动`;
+  if (state.mode !== 'read') return;
+  for (const record of records) {
+    const item = document.createElement('li');
+    const text = document.createElement('p');
+    for (const part of sentenceParts(record.text, record.spans)) {
+      if (part.highlight) { const mark=document.createElement('mark'); mark.textContent=part.text; text.append(mark); }
+      else text.append(document.createTextNode(part.text));
+    }
+    const source=document.createElement('span'); source.className='sentence-source'; source.textContent=(record.titles || []).join(' · ');
+    item.append(text,source); $('sentence-list').append(item);
+  }
+  $('sentence-list').scrollTop = 0;
+}
+
 function wordnetPanel(entry) {
   const data = entry.wordnet;
   const panel = document.createElement('section'); panel.className = 'wordnet-panel';
@@ -327,6 +352,7 @@ function updateReadingView() {
   $('translations').hidden = hideMeaning;
   $('reading-details').hidden = hideMeaning;
   $('memory-contexts').hidden = !state.book.words[state.index].contexts?.length || hideWord || hideMeaning;
+  $('article-sentences').hidden = !showArticleSentences || !state.book.words[state.index].article_sentences?.length || hideWord || hideMeaning;
   $('word-forms-section').hidden = hideWord;
   $('reading-prompt').hidden = !hideWord && !hideMeaning;
   $('reading-prompt').textContent = hideWord ? '先回想单词，按空格揭示。' : '先回想释义，按空格揭示。';
@@ -512,6 +538,8 @@ function render() {
   state.batch = null;
   $('batch-content').hidden = true;
   $('memory-contexts').hidden = true;
+  $('article-sentences').hidden = true;
+  $('sentence-options').hidden = true;
   state.readingRevealed = false;
   state.result = null;
   $('translations').hidden = false;
@@ -590,6 +618,7 @@ function render() {
   const sourceLabel = document.createElement('div'); sourceLabel.className = 'dictionary-label'; sourceLabel.textContent = 'ECDICT · 中文释义'; $('translations').prepend(sourceLabel);
   $('wordnet-reading').replaceChildren(wordnetPanel(word));
   renderContexts(word);
+  renderArticleSentences(word);
   $('word-tags').replaceChildren();
   for (const tag of word.tag.split(' ').filter(Boolean).slice(0, 6)) { const label = document.createElement('span'); label.textContent = tagNames[tag] || tag.toUpperCase(); $('word-tags').append(label); }
   $('word-stars').textContent = word.collins ? '★'.repeat(Math.min(5, Math.max(0, Number(word.collins)))) : '';
@@ -757,7 +786,7 @@ function hideWordHint(focusInput = false) {
 }
 
 document.addEventListener('keydown', event => {
-  if (state.editing) return;
+  if (state.editing || event.target.closest('.edit-wordbook-button')) return;
   if (event.key !== 'Tab' || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing) return;
   if (state.loading || state.mode !== 'learn' || !state.book || state.index >= state.book.words.length) return;
   if (!event.target.closest('.study-panel') || event.target.closest('.mode-switch, .collection-switch, .reading-options')) return;
@@ -790,7 +819,7 @@ window.addEventListener('blur', () => hideWordHint());
 document.addEventListener('visibilitychange', () => { if (document.hidden) hideWordHint(); });
 
 document.addEventListener('keydown', event => {
-  if (state.editing) return;
+  if (state.editing || event.target.closest('.edit-wordbook-button')) return;
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
   if (event.target.closest('.global-search')) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing || event.keyCode === 229) return;
@@ -806,7 +835,7 @@ document.addEventListener('keydown', event => {
 }, true);
 
 document.addEventListener('keydown', event => {
-  if (state.editing) return;
+  if (state.editing || event.target.closest('.edit-wordbook-button')) return;
   if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
   if (state.mode !== 'read' || state.loading || !state.book || state.index >= state.book.words.length) return;
   if (event.target.closest('.sidebar, .mode-switch, .collection-switch, .reading-options') || event.target.matches('input, textarea, select, a') || event.target.isContentEditable) return;
@@ -820,6 +849,11 @@ document.addEventListener('keydown', event => {
 $('read-mode').onclick = () => setMode('read');
 $('learn-mode').onclick = () => setMode('learn');
 $('reading-display').onchange = event => setReadingDisplay(event.target.value);
+$('show-article-sentences').onchange = event => {
+  showArticleSentences = event.target.checked;
+  try { localStorage.setItem('wordroom.showArticleSentences',String(showArticleSentences)); } catch { /* Preference only. */ }
+  if(state.mode==='read' && state.book && state.index<state.book.words.length) updateReadingView();
+};
 $('batch-size').onchange = event => setBatchSize(Number(event.target.value));
 $('main-collection').onclick = () => setCollection('main');
 $('easy-collection').onclick = () => setCollection('easy');
@@ -861,7 +895,7 @@ $('answer').addEventListener('keydown', event => {
   else if (event.code === 'Space' && state.result?.checked) { event.preventDefault(); event.stopPropagation(); continueStudy(); }
 });
 document.addEventListener('keydown', event => {
-  if (state.editing) return;
+  if (state.editing || event.target.closest('.edit-wordbook-button')) return;
   if (event.isComposing || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
   if (event.target.closest('.global-search')) return;
   if (isBatchMode()) {
@@ -931,6 +965,19 @@ const wordbookEditor = setupWordbookEditor({
     render();
     if (editedCurrentBook) { save(); editedCurrentBook = false; }
     document.querySelector('.study-panel').scrollIntoView({block:'start'});
+  },
+});
+
+const wordbookCreation = setupWordbookCreation({
+  api, folderName,
+  getFolder: () => state.folder,
+  beforeCreate: kind => !state.loading && (kind === 'folder' || wordbookEditor.canOpen()),
+  async onCreated(item) {
+    await browse(item.type === 'folder' ? item.path : item.parent);
+    await globalSearch.refresh();
+    $('refresh-status').hidden = false;
+    $('refresh-status').textContent = `已创建${item.type === 'folder' ? '文件夹' : '单词本'}：${item.name}`;
+    if (item.type === 'book' && !await wordbookEditor.open(item.path)) throw new Error('请在“修改单词本”中选择新建词本。');
   },
 });
 

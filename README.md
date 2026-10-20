@@ -1,10 +1,19 @@
 # Wordroom · 单词自习室
 
-本地英语单词学习网页，Python 3.10 或更高版本即可运行，无需安装额外依赖。
+本地英语单词学习网页，基础阅读和拼写使用 Python 3.10 或更高版本即可运行。整篇文章导入需要额外安装本地英文模型。
+
+## 功能概览
+
+- 像文件浏览器一样管理多层文件夹和单词本，支持新建、逐行修改及 TXT、CSV、TSV、JSON 导入。
+- 汇总所有词本进行全局搜索，前缀匹配优先，并列出每个词的全部来源。
+- 阅读支持隐藏单词或释义、随机顺序、原文语境；拼写支持单词练习及 5 / 10 词批量练习。
+- 粘贴整篇英文文章，按上下文提取单词原型、去重并关联原句；阅读时高亮实际词形，多个原句独立滚动。
+- 每本词本单独管理简单词、学习进度与文章内容，保存在 JSON 中，可通过 Git 同步。
 
 ## 环境要求（Requirements）
 
-- Python 3.10 或更高版本，包含标准库 `sqlite3`。运行项目无需 `pip install`、Node.js 或前端构建。
+- Python 3.10 或更高版本，包含标准库 `sqlite3`。基础学习无需 `pip install`、Node.js 或前端构建。
+- 可选的整篇文章导入使用 spaCy 3.8.16 和官方 `en_core_web_trf` 3.8.0 Transformer 管线。首次安装需要联网下载约 436 MiB 的模型，另有依赖；安装后在本机离线解析。环境和模型位于 `.runtime/article-env/`，不随 Git 上传，也不改动全局 Python。
 - 可运行现代 JavaScript 的浏览器。朗读使用浏览器和系统提供的语音合成能力。
 - 本地 ECDICT 格式的 SQLite 词典数据库（`dict.db`）。准备词典时可参考 [ECDICT 项目](https://github.com/skywind3000/ECDICT)；本项目读取 `stardict` 表中的 `word`、`phonetic`、`definition`、`translation`、`collins`、`tag`、`exchange` 字段。
 - 英文补充词库使用免费的 [Open English WordNet 2025+](https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition)，首次下载需联网，安装后离线使用。无需 API 账号或付费订阅。
@@ -12,50 +21,68 @@
 
 词典数据库需在每台电脑上单独准备，不随 Git 仓库上传。单词、简单词分类和学习记录保存在 `words/` 的 JSON 文件中，随仓库一起同步。
 
-## 启动
+## 快速开始
 
-新电脑先克隆项目，然后指定本机词典路径启动：
+### 1. 获取项目并配置词典
+
+准备 ECDICT 格式的 `dict.db`，在终端执行以下命令；将示例词典路径替换为本机实际位置：
 
 ```powershell
 git clone https://github.com/jianxing04/English-Word-Learning.git
 cd English-Word-Learning
-python app.py --dict "D:\Dictionaries\dict.db"
-```
-
-首次使用时，在项目目录安装英文补充词库：
-
-```powershell
-python tools/setup_wordnet.py
-```
-
-脚本从项目官方站点下载约 12.3 MiB 的固定版本数据，校验 SHA-256 后生成约 28.3 MiB 的 `data/wordnet.db`。只使用 Python 标准库，不需要安装第三方包。已安装时不会重复下载；重建可加 `--force`。已经下载官方压缩包时可使用 `--source "压缩包路径.xml.gz"`。词库没有安装或未收录某词时，ECDICT 仍可正常使用。
-
-默认自动加载 `data/wordnet.db`；如需放在其他位置，可给安装脚本传 `--output`，给应用传 `--wordnet` 或配置 `WORDROOM_WORDNET` 环境变量。换电脑拉取代码后，在该电脑同样运行一次安装脚本即可，不需要通过 Git 上传词典文件。
-
-将示例中的词典路径替换为实际文件路径。也可以通过环境变量配置，再运行启动脚本：
-
-```powershell
 $env:WORDROOM_DICT = "D:\Dictionaries\dict.db"
-.\start.bat
 ```
 
-已配置词典路径后，双击 `start.bat`，浏览器会自动打开 http://127.0.0.1:8765 。运行时保持命令窗口开启，关闭窗口或按 Ctrl+C 可停止服务。
+### 2. 按需安装补充资源
 
-也可以在项目目录运行：
+| 资源 | 用途 | 本机准备方式 |
+| --- | --- | --- |
+| ECDICT `dict.db` | 基础中英文释义 | 必需，使用上一步的路径配置 |
+| Open English WordNet | 按义项显示英文解释和同义词 | 可选，运行 `python tools/setup_wordnet.py` |
+| spaCy 英文 Transformer 模型 | 从新文章提取词汇和原句 | 可选，运行 `python tools/setup_article_nlp.py` |
+
+两个安装脚本均在项目目录运行，首次安装需要联网。只阅读已有词本和已经保存的文章原句时，无需安装文章模型。资源、模型和虚拟环境保存在本机，不随 Git 上传。
+
+### 3. 启动网页
+
+在配置好词典路径的终端中运行：
 
 ```powershell
 python app.py
 ```
 
-默认只在本机提供服务。更换端口或词典位置：
+浏览器会自动打开 [http://127.0.0.1:8765/](http://127.0.0.1:8765/)。保持服务所在终端开启，按 Ctrl+C 停止服务；已保存到 JSON 的学习记录会保留。Windows 也可运行 `start.bat`；双击启动时，需提前在系统环境变量中配置 `WORDROOM_DICT`，或按下一段直接传入词典路径。
+
+不使用环境变量时，可以直接指定路径；其他终端中再次启动也可用此方式：
 
 ```powershell
-python app.py --port 8766 --dict "D:\My_Codes\MyEnglishApp\data\dict.db"
+python app.py --dict "D:\Dictionaries\dict.db"
 ```
+
+服务默认仅在本机提供访问。常用启动参数：
+
+```powershell
+python app.py --port 8766 --dict "D:\Dictionaries\dict.db"
+python app.py --words "D:\Vocabulary" --no-browser
+```
+
+### 英文补充词库的其他安装方式
+
+`python tools/setup_wordnet.py` 从项目官方站点下载约 12.3 MiB 的固定版本数据，校验 SHA-256 后生成约 28.3 MiB 的 `data/wordnet.db`。脚本只使用 Python 标准库。已安装时不会重复下载；重建可加 `--force`。已经下载官方压缩包时可使用：
+
+```powershell
+python tools/setup_wordnet.py --source "D:\Downloads\english-wordnet.xml.gz"
+```
+
+应用默认加载 `data/wordnet.db`；其他位置可给安装脚本传 `--output`，给应用传 `--wordnet` 或配置 `WORDROOM_WORDNET` 环境变量。词库没有安装或未收录某词时，ECDICT 仍可正常使用。
 
 ## 单词本
 
 网页左侧是 `words/` 目录的文件浏览器。点击文件夹进入，点击顶部路径或“返回上一级”返回；词表按自然数字顺序排列，WL2 在 WL10 前面。
+
+可以直接点击左侧“新建文件夹”或“新建单词本”。新内容创建在当前浏览的目录中，名称输入框上方会显示创建位置；点击路径中的“单词本”回到根目录后，也可以从根目录开始新建。创建文件夹后自动进入该文件夹，可继续逐层新建子文件夹，或在其中创建单词本。
+
+新词本自动保存为标准 JSON，并立即打开编辑页。可选择“逐行编辑”，每行输入一个词后点击“保存修改”；也可切换到“整篇文章添加”，粘贴文章并解析导入。全局搜索会同步更新，不需要手动编辑文件格式。遇到重名会提示更换名称，已有文件不会被覆盖；编辑中有未保存内容时，需要先保存或取消修改，再新建并切换词本。
 
 将新词表或整个词表文件夹放进 `words/` 后点击“我的单词本”右侧刷新。无论当前停在哪个文件夹，刷新都会递归扫描整个 `words/`（包含新建的 IELTS 等子目录），先导入新词表，再更新全局搜索和当前结果，并提示同步的词本数、新导入数量。无需重启服务器。支持：
 
@@ -71,11 +98,64 @@ python app.py --port 8766 --dict "D:\My_Codes\MyEnglishApp\data\dict.db"
 
 ## 修改单词本
 
-点击左侧“修改单词本”，可以选择任意目录中的词本。编辑时仅显示合并后的原始词汇列表，每行一个词；原词本、简单词、释义、扩展词组和学习操作暂时隐藏，键盘恢复正常的文本编辑行为。可以增加、删除、修改或调整单词顺序，点击“保存修改”直接更新对应 JSON，并同步全局搜索；“取消修改”丢弃当前未保存的输入并返回学习。
+点击学习卡片顶部、词本名称旁的“修改单词本”，可以选择任意目录中的词本。默认的“逐行编辑”只显示合并后的原始词汇列表，每行一个词；原词本、简单词、释义、扩展词组和学习操作暂时隐藏，键盘恢复正常的文本编辑行为。可以增加、删除、修改或调整单词顺序，点击“保存修改”直接更新对应 JSON，并同步全局搜索；“取消修改”丢弃当前未保存的输入并返回学习。“整篇文章添加”见下一节。
 
 未改动的词保留简单词分类、学习记录和扩展词组；新增或改了拼写的词按新词加入原词本，不继承旧词的搭配。删除词会移除其搭配。空行忽略，重复词不区分大小写并合并。编辑顺序保存在 `word_order`，以后移入或移出简单词不会打乱编辑列表的顺序；阅读模式仍按原来的规则随机排列。学习位置和检查记录继续通过单词身份对应，删除或调整顺序不会把历史错记给另一个词。
 
 每次修改前自动将原 JSON 备份到本地 `.runtime/wordbook-edits/`。如果文件已被另一页面或 Git 同步更新，旧编辑会被拒绝，输入保留，避免覆盖新记录；可复制修改后点击“放弃修改并重新加载”再合并。备份不随 Git 上传，编辑后的词本 JSON 正常参与同步。
+
+## 从整篇文章添加词汇
+
+新建单词本后，或点击词本名称旁的“修改单词本”，在编辑页切换到“整篇文章添加”。粘贴完整英文文章，可选填标题，点击“解析并预览”。每次最多 60,000 个字符；默认选择全部英文词，包含基础词和专有名词，忽略纯数字、标点、网址和邮箱。预览列出原型、原文词形、已有或新增状态及关联句数；可取消词语或修正原型，确认后才写入词本。逐行编辑有未保存修改时，需要先保存。
+
+### 安装本地模型
+
+首次使用该功能，在项目目录执行：
+
+```powershell
+python tools/setup_article_nlp.py
+```
+
+脚本使用官方 PyPI 与 spaCy 官方模型发行包，创建 `.runtime/article-env/` 环境并校验固定模型的 SHA-256。spaCy 与模型版本固定在 `requirements-article.txt`，应通过安装脚本安装。模型约 436 MiB，另需 PyTorch 等依赖；下载时间和磁盘占用取决于本机已有环境。已下载同版本官方 wheel 时可使用：
+
+```powershell
+python tools/setup_article_nlp.py --wheel "D:\Downloads\en_core_web_trf-3.8.0-py3-none-any.whl"
+```
+
+普通阅读、拼写和查看已保存原句不需要运行该模型；模型仅在解析文章时加载到独立进程中，文章不会发送到在线 API。点击解析后请等待结果，加载耗时受本机硬件影响；最长等待 180 秒，长文章可分段导入。
+
+### 词形归并与重复导入
+
+解析采用 [spaCy 的 Transformer 管线](https://spacy.io/models/en#en_core_web_trf) 预测词性和句界，再结合词性进行[词形还原](https://spacy.io/api/lemmatizer)，并补充词性敏感的比较级例外。它按 lemma 归并时态、分词与单复数，不使用简单截断词尾的词干算法，也不把 `infer` 与 `inference` 等派生词合并。例如 `run/ran/running` 归为 `run`；名词 `leaves` 归为 `leaf`，动词 `leaves` 归为 `leave`。词典中已收录的常见连字符词保留为一个单位；缩写、缩略词与原句位置由模型处理。人工逐行输入的已有词条保持原样，不为猜测其意图而批量改写。
+
+统计模型不能保证任意文章、歧义词或 OCR 文本零误差，预览中的原型可修改；不会在模型缺失时偷偷降级成正则分词。模型缺失或失败会明确提示，已有词本不会因此改变。
+
+同一本词本按原型、不区分大小写去重；已有词只增加原句，分类、进度和原有扩展词组保留。重复导入同一篇文章不会新增重复词或相同原句。文章原文、标题和模型版本保存在词本的 `articles` 字段，单词关联保存在 `word_details[单词].article_sentences`；每条原句记录完整文本、精确高亮位置及文章来源。高亮位置使用 Unicode 码点，支持句中 emoji 等字符，不通过词串包含关系猜测匹配。不同原型被手动修正成同一个词时，句子和高亮位置也会合并。
+
+阅读文章词汇时可勾选“显示所在句子”。原句区独立滚动，鼠标滚轮可查看所有关联句子，并高亮实际出现的不同词形。同句多次出现的词也会全部高亮。关闭选项的偏好保存在本机浏览器；隐藏单词或释义时，原句也先隐藏，按空格揭示后一起显示，拼写和批量背诵不展示原句。所有数据随词本 JSON 参与 Git 同步；换电脑只查看原句不需要重新解析，继续导入新文章则需要在该电脑安装模型。
+
+例如，文章包含 `The dogs ran home. A dog runs every morning.` 时，其中的 `dogs / dog` 保存为 `dog`，`ran / runs` 保存为 `run`，两者分别关联这两个原句，展示时仍高亮实际词形。词本已有的 `dog` 即使位于简单词分类，也只增加原句，保持原分类。
+
+### JSON 中的原句结构
+
+下面是字段片段，省略了正常词本必需的其他字段；`ARTICLE_ID` 在实际文件中为文章原文的 SHA-256：
+
+```json
+{
+  "articles": {
+    "ARTICLE_ID": {"title": "阅读练习", "text": "Dogs ran.", "engine": {"name": "spaCy en_core_web_trf", "model_version": "3.8.0"}}
+  },
+  "word_details": {
+    "run": {
+      "article_sentences": [
+        {"text": "Dogs ran.", "spans": [[5, 8]], "sources": [{"article_id": "ARTICLE_ID", "sentence_index": 0}]}
+      ]
+    }
+  }
+}
+```
+
+`spans` 是左闭右开的 Unicode 码点区间，上例 `[5, 8]` 对应 `ran`。同一原句可保存多个高亮区间及多个文章来源；原文每篇只在 `articles` 中保存一次。后续移入或移出简单词、保存学习进度均保留这些字段。
 
 ## 全局单词搜索
 
@@ -155,7 +235,7 @@ python app.py --dict "D:\Dictionaries\dict.db"
 
 这不包含自动 Git 提交、推送或拉取。在不同电脑交替学习前先同步，避免同时修改同一个 WL；若 Git 提示冲突，需要合并 JSON 后再运行。外部词典数据库需在另一台电脑另行配置，可通过 `--dict` 参数或 `WORDROOM_DICT` 环境变量指定。
 
-`.gitignore` 排除词典数据库、本地 `data/` 与 `dictionaries/`、`.runtime/` 下的日志和备份、Python 缓存、虚拟环境及本机配置；不会忽略 `words/` 中的 JSON。`.gitattributes` 统一代码与 JSON 的换行，Windows 启动脚本保留 CRLF，方便不同电脑同步。
+`.gitignore` 排除词典数据库、本地 `data/` 与 `dictionaries/`、`.runtime/` 下的模型、日志和备份、wheel 安装包、Python 缓存、虚拟环境及本机配置；不会忽略 `words/` 中的 JSON。文章原文也包含在对应词本 JSON 中，随词本一起同步。`.gitattributes` 统一代码与 JSON 的换行，Windows 启动脚本保留 CRLF，方便不同电脑同步。
 
 ## 键盘规则
 
@@ -206,9 +286,50 @@ Tab 提示不检查答案、不清空输入、不换词。窗口失去焦点或�
 - 数据库及原始压缩包保存在被 Git 忽略的 `data/` 或 `.runtime/`；获取与转换脚本随代码管理。来源及原始许可证保留在 `third_party/wordnet/`，安装时也复制到本地数据目录。
 - 朗读使用浏览器和系统的语音合成能力，可用音色由本机环境决定。
 
+## 项目结构
+
+```text
+app.py                         本地 HTTP 服务、词本管理、搜索与持久化
+article_nlp.py                 可选文章模型的本地进程桥接
+article_storage.py             原型去重与文章原句合并
+wordnet_dictionary.py          WordNet 数据转换与查询
+static/                        网页、样式及学习状态模块
+words/                         参与 Git 同步的词本 JSON 和学习记录
+tools/setup_article_nlp.py     本地文章模型安装脚本
+tools/article_worker.py        上下文分词、句界识别与词形还原
+tools/setup_wordnet.py         WordNet 下载、校验和建库
+requirements-article.txt       可选文章模型的固定版本依赖
+third_party/                   词库及文章模型的来源、许可证说明
+tests/                         Python 和 JavaScript 回归测试
+data/                          本机词典数据（Git 忽略）
+.runtime/                      本机模型环境、备份和日志（Git 忽略）
+```
+
+## 常见问题
+
+| 情况 | 处理方式 |
+| --- | --- |
+| 页面提示 ECDICT 未配置 | 检查 `--dict` 或 `WORDROOM_DICT` 是否指向实际的 `dict.db`，修改启动配置后重启服务。 |
+| 文章解析提示尚未安装模型 | 在项目目录运行 `python tools/setup_article_nlp.py`，安装成功后重新点击解析。 |
+| 模型下载失败 | 检查官方 PyPI 和 GitHub 下载是否可访问；已下载官方同版本 wheel 时可使用安装脚本的 `--wheel` 参数。 |
+| 长文章解析超时 | 将文章分段添加；同一本词本中已有原型会继续合并原句。 |
+| 预览或保存提示文件已更新 | 先保留自己的输入，再重新加载最新词本并合并修改，避免覆盖其他页面或 Git 同步的新记录。 |
+| 换电脑看不到最新分类、进度或文章 | 在原电脑确认“已保存到 JSON”后提交并推送 `words/`，在新电脑拉取后刷新页面。 |
+| 关闭终端后网页不能使用 | 本地服务器需要持续运行，重新执行启动命令；已写入 JSON 的记录不受影响。 |
+
 ## 验证
+
+基础测试使用临时词本和小型词典 fixture，不改动真实的 `words/`。Node.js 仅用于前端测试，建议使用 Node.js 18 或更高版本：
 
 ```powershell
 python -m unittest discover -s tests -v
-node --test tests/study-state.test.mjs tests/wordbook-state.test.mjs tests/batch-state.test.mjs
+node --test tests/study-state.test.mjs tests/wordbook-state.test.mjs tests/batch-state.test.mjs tests/article-text.test.mjs
 ```
+
+未安装可选文章模型时，Python 测试会跳过三个真实模型测试，其余文章合并、去重、保存和高亮测试正常运行。安装后可单独验证真实模型：
+
+```powershell
+python -m unittest discover -s tests -p test_article_nlp.py -v
+```
+
+真实模型测试覆盖不规则时态、复数、歧义词、缩写、缩略词、连字符词以及原句位置；前端测试同时检查 Unicode 高亮和学习状态。

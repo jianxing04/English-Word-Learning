@@ -16,7 +16,13 @@
     <aside class="sidebar" aria-label="单词本浏览器">
       <div class="sidebar-heading"><h2>我的单词本</h2><button id="refresh" class="icon-button" title="刷新全部词本和搜索" aria-label="刷新全部词本和搜索"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10m16 4-3 3A7 7 0 0 1 5 12"/></svg></button></div>
       <p id="refresh-status" class="refresh-status" role="status" hidden></p>
-      <button id="edit-wordbook" class="edit-wordbook-button" type="button">修改单词本</button>
+      <div class="create-buttons" aria-label="新建"><button id="new-folder" type="button">新建文件夹</button><button id="new-book" type="button">新建单词本</button></div>
+      <form id="create-item-form" class="create-item-form" hidden>
+        <p id="create-parent" class="create-parent"></p><label id="create-name-label" for="create-name">名称</label>
+        <input id="create-name" name="name" type="text" maxlength="120" required autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="create-status">
+        <p id="create-status" class="create-status" role="status"></p>
+        <div class="create-actions"><button id="create-submit" type="submit">创建</button><button id="create-cancel" type="button">取消</button></div>
+      </form>
       <nav id="folder-crumbs" class="folder-crumbs" aria-label="文件夹路径"></nav>
       <div id="files" class="files" aria-live="polite"><p class="muted">正在读取单词本…</p></div>
       <div class="sidebar-bottom"><span class="small-label">添加单词本</span><p>把词表放入 <code>words</code> 文件夹<br>再点击刷新，即可开始学习。</p><span class="file-types">TXT / CSV / TSV / JSON</span></div>
@@ -33,16 +39,26 @@
       <section id="wordbook-editor" class="wordbook-editor" aria-labelledby="editor-heading" hidden>
         <div class="editor-heading"><h2 id="editor-heading">修改单词本</h2><span id="editor-count"></span></div>
         <label for="editor-book">选择单词本</label><select id="editor-book"></select>
+        <div class="editor-method" aria-label="添加方式"><button id="editor-list-mode" type="button" aria-pressed="true">逐行编辑</button><button id="editor-article-mode" type="button" aria-pressed="false">整篇文章添加</button></div>
+        <div id="editor-list-fields" class="editor-list-fields">
         <label for="editor-words">原始词汇列表</label>
         <p class="editor-help">每行一个词，可修改、添加、删除或调整顺序。保存时忽略空行并去重。</p>
         <textarea id="editor-words" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="editor-help editor-status" placeholder="每行输入一个英文单词…"></textarea>
         <p id="editor-help" class="editor-help">未改动的词保留原有记录。新增或改了拼写的词加入原词本。</p>
+        </div>
+        <section id="editor-article-fields" class="editor-article-fields" aria-label="整篇文章添加" hidden>
+          <label for="article-title">文章标题（可选）</label><input id="article-title" type="text" maxlength="200" placeholder="如：2025 年阅读真题" autocomplete="off">
+          <label for="article-text">粘贴完整英文文章</label><textarea id="article-text" maxlength="60000" spellcheck="false" autocapitalize="off" placeholder="在这里粘贴英文文章，系统将提取原型并关联原句…"></textarea>
+          <p class="editor-help">所有英文词默认加入，时态、复数等按上下文还原；已有词只追加原句。每次最多 60,000 字符。解析在本机完成，首次加载模型稍慢。</p>
+          <button id="article-analyze" class="primary-button" type="button">解析并预览</button>
+          <div id="article-preview" class="article-preview" hidden><p id="article-summary"></p><p class="editor-help">可取消不需要的词，或修正原型。原句中的实际词形会保留并高亮。</p><label class="article-select-all"><input id="article-select-all" type="checkbox" checked> 全选 <span id="article-selected-count"></span></label><div class="article-preview-scroll" tabindex="0" role="region" aria-label="提取的原型及文中词形"><table><thead><tr><th scope="col">添加</th><th scope="col">原型（可修改）</th><th scope="col">文中词形</th><th scope="col">归属 / 原句</th></tr></thead><tbody id="article-word-list"></tbody></table></div><button id="article-import" class="primary-button" type="button" disabled>确认添加到本词本</button></div>
+        </section>
         <p id="editor-status" class="editor-status" role="status"></p>
         <div class="editor-actions"><button id="editor-save" class="primary-button" type="button">保存修改</button><button id="editor-cancel" class="text-button" type="button">返回学习</button><button id="editor-reload" class="text-button" type="button" hidden>放弃修改并重新加载</button></div>
       </section>
       <section class="study-panel" aria-label="单词学习区">
-        <div class="study-toolbar"><div class="book-heading"><span class="book-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5a2 2 0 0 1 0-4h14M5 4v12M9 8h6"/></svg></span><div><h2 id="book-name">选择一本单词本</h2><span id="book-path" class="muted">从左侧打开文件夹和词表</span></div></div><div class="mode-switch" aria-label="学习模式"><button id="read-mode" aria-pressed="true">阅读模式</button><button id="learn-mode" aria-pressed="false">拼写学习</button></div></div>
-        <div id="collection-toolbar" class="collection-toolbar" hidden><div class="collection-switch" aria-label="词本分类"><button id="main-collection" aria-pressed="true">原词本</button><button id="easy-collection" aria-pressed="false">简单词本</button></div><label id="reading-options" class="reading-options" hidden>阅读显示<select id="reading-display"><option value="all">全部显示</option><option value="hide-meaning">隐藏释义</option><option value="hide-word">隐藏单词</option></select></label><label id="batch-options" class="reading-options" hidden>每次背诵<select id="batch-size"><option value="1">单个单词</option><option value="5">5 个单词</option><option value="10">10 个单词</option></select></label><span id="collection-notice" role="status"></span></div>
+        <div class="study-toolbar"><div class="book-heading"><span class="book-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5a2 2 0 0 1 0-4h14M5 4v12M9 8h6"/></svg></span><div><div class="book-title-line"><h2 id="book-name">选择一本单词本</h2><button id="edit-wordbook" class="edit-wordbook-button" type="button">修改单词本</button></div><span id="book-path" class="muted">从左侧打开文件夹和词表</span></div></div><div class="mode-switch" aria-label="学习模式"><button id="read-mode" aria-pressed="true">阅读模式</button><button id="learn-mode" aria-pressed="false">拼写学习</button></div></div>
+        <div id="collection-toolbar" class="collection-toolbar" hidden><div class="collection-switch" aria-label="词本分类"><button id="main-collection" aria-pressed="true">原词本</button><button id="easy-collection" aria-pressed="false">简单词本</button></div><label id="reading-options" class="reading-options" hidden>阅读显示<select id="reading-display"><option value="all">全部显示</option><option value="hide-meaning">隐藏释义</option><option value="hide-word">隐藏单词</option></select></label><label id="sentence-options" class="reading-options sentence-options" hidden><input id="show-article-sentences" type="checkbox" checked>显示所在句子</label><label id="batch-options" class="reading-options" hidden>每次背诵<select id="batch-size"><option value="1">单个单词</option><option value="5">5 个单词</option><option value="10">10 个单词</option></select></label><span id="collection-notice" role="status"></span></div>
         <div class="progress-row"><span id="position-label">准备开始</span><div class="progress-track" role="progressbar" aria-label="单词本进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div><span id="progress-percent">0%</span></div>
         <div id="empty-state" class="empty-state"><span class="empty-symbol">Aa</span><h3>打开单词本，开始今天的积累</h3><p>像浏览文件夹一样，从左侧选择你的词表。</p></div>
         <div id="word-content" hidden>
@@ -50,6 +66,7 @@
           <div class="word-primary">
           <div class="word-stage"><div class="word-kicker"><span id="mode-label">READ & REMEMBER</span><span id="word-stars" class="word-stars" aria-label="柯林斯词频星级"></span></div><div id="word-display"><div class="word-line"><h2 id="word-title"></h2><button id="speak" class="icon-button sound-button" title="朗读单词" aria-label="朗读单词"><svg viewBox="0 0 24 24"><path d="m11 5-6 4H2v6h3l6 4zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button></div><div id="phonetic" class="phonetic"></div></div><div id="recall-title" hidden><h2>这个词，你还记得吗？</h2><p>根据下面的释义，写出英文单词。</p></div><div id="reading-prompt" class="reading-prompt" hidden aria-live="polite"></div><div id="translations" class="translations"></div><span id="word-tags" class="word-tags"></span></div>
           <section id="memory-contexts" class="memory-contexts" aria-labelledby="context-title" hidden><div class="context-heading"><h3 id="context-title">语境记忆</h3><span>学习搭配</span></div><p id="context-note" class="context-note" hidden></p><ol id="context-list" class="context-list"></ol></section>
+          <section id="article-sentences" class="article-sentences" aria-labelledby="sentence-title" hidden><div class="context-heading"><h3 id="sentence-title">文章原句</h3><span id="sentence-count"></span></div><ol id="sentence-list" class="sentence-list" tabindex="0" aria-label="包含当前词的原句，可滚轮向下查看"></ol></section>
           <div id="learn-area" class="learn-area" hidden><label for="answer">你的答案</label><div class="answer-wrap"><input id="answer" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="输入英文单词…" aria-describedby="feedback"><button id="check-answer">检查 <kbd>Enter</kbd></button></div><div id="feedback" class="feedback" aria-live="polite">← / → 切换单词；按住 Tab 提示；回车检查；空格继续。</div><button id="continue-answer" class="continue-answer" disabled>检查后按空格继续 <kbd>Space</kbd></button></div>
           <div id="word-actions" class="word-actions" hidden><button id="move-word" type="button">移入简单词</button></div>
           </div>
